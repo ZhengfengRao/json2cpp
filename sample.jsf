@@ -1,0 +1,79 @@
+/*
+语法：
+	(@description="balaa....")
+	Interface {interface_name}{
+	Request{
+		(@description="balaa....")
+		@jdname={jsf_filed_name}
+		[field_type] {field_name} (optional); 
+	};
+	
+	Response{
+		(@description="balaa....")
+		@jdname={jsf_filed_name}
+		[field_type] {field_name} (optional); 
+	};
+};
+
+其中：
+1. {interface_name}表示接口名，可以是任何有效的变量名
+2. (@description="balaa....")表示注释，最终写入到生成的头文件中。()表示可选
+3.@jdname={jsf_filed_name}对应的京东jsf字段名字
+4.[field_type] 字段类型，可选值为[int short string vector<int> vector<short> vector<string>]
+5.{field_name}字段名，可以是任何有效的变量名
+6.(optional)表示该字段是可选的
+7.本文件支持c++格式的注释，但解析时直接忽略，不会出现在生成的头文件中
+
+示例如下：
+*/
+
+(@description="申请开票接口  balabala....")			//接口说明
+Interface AddInvoice{
+	Request{
+		(@description="来源")									//字段说明
+		@jdname="sourceId"
+		int source;
+
+		(@description="开票机构")
+		@jdname="orgId"
+		int organizationId;
+
+		(@description="开票类型")
+		@jdname="ivcType"
+		int invoiceType;
+
+		(@description="申请单号")
+		@jdname="reqNo"
+		string requestNo;
+
+		(@description="付款方识别号")
+		@jdname="payerNo"
+		string payNo;
+
+		(@description="收款方识别号")
+		@jdname="receiverNo"
+		string receiverNo optional;								//可选字段
+
+		(@description="订单列表")
+		@jdname="businessIds"
+		vector<string> bussinessIds;
+	};
+
+	Response{
+		(@description="业务返回代码")
+		@jdname="code"
+		string code;
+
+		(@description="业务返回信息")
+		@jdname="msg"
+		string message;
+
+		(@description="申请单号")
+		@jdname="reqNo"
+		string requestNo;
+
+//		(@description="订单列表")
+//		@jdname="businessIds"
+//		vector<string> bussinessIds optional;				//可选字段
+	};
+};
