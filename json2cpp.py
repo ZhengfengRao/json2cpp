@@ -784,6 +784,9 @@ def generate_base(base_directory):
     except Exception, e:
         print e
 
+def generate_test(base_directory):
+    pass
+
 def generate_interface(base_directory, interface):
     header =  FILE_HEADER + interface.dump() + FILE_FOOTER
 
