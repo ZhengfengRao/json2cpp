@@ -97,9 +97,11 @@ class InvoiceTicket{
 @description="申请开票接口  balabala...."			//接口说明
 Interface AddInvoice{
 	Request{
+		//@description="来源"
 		@jsonname="sourceId", description="来源" 	//序列化后的json字段名,字段说明(可选)
 		int source;
 
+		//Optional(@ + word = quotedString + ZeroOrMore(, + word = quotedString))
 		@jsonname="orgId", description="开票机构"
 		int organizationId;
 

@@ -154,7 +154,7 @@ public:
 class IResponse
 {
 public:
-    Field<int> m_JSFCode;                                		//JSF协议错误代码             Y
+    Field<int> m_JSFCode;                                //JSF协议错误代码             Y
     Field<std::string> m_JSFMessage;                     //JSF协议错误信息
 
 public:
@@ -233,7 +233,7 @@ public:
 		CHECK_REQUEST_FIELD(m_JSFMessage, strErrMsg);
 
 		return true;
-	}
+    }
 };
 
 }
@@ -400,11 +400,11 @@ class Field:
         self.description = ""
         self.type = ""
         self.name = ""
-        self.jdname = ""
+        self.jsonname = ""
         self.optional = 0
 
     def is_valid(self):
-        # return self.type != "" and self.name != "" and self.jdname != ""
+        # return self.type != "" and self.name != "" and self.jsonname != ""
         return self.type != "" and self.name != ""
 
     def get_field_type(self):
@@ -453,7 +453,7 @@ class Field:
     def dump_initialize_list(self):
         str = ""
         if self.is_valid():
-            str += "\t\t,m_" + self.name + "(\"" + self.jdname + "\", " + ("true" if self.optional == 0 else "false") + ")\n"
+            str += "\t\t,m_" + self.name + "(\"" + self.jsonname + "\", " + ("true" if self.optional == 0 else "false") + ")\n"
         return str
 
     def dump_tojson(self):
@@ -480,6 +480,7 @@ class Field:
             str = "\t\tm_" + self.name + ".Clear();\n"
         return str
 
+
 class FieldCollector:
     def __init__(self):
         self.fields = []
@@ -490,7 +491,7 @@ class FieldCollector:
         for field in self.fields:
             if field.is_valid() == 0:
                 return 0
-        return 1;
+        return 1
 
     def dump_declaration(self):
         str = "public:\n"
@@ -511,12 +512,14 @@ class FieldCollector:
             str += field.dump_isvalid()
         return str
 
+
 class Request(FieldCollector):
     def dump_tojson(self):
         str = ""
         for field in self.fields:
             str += field.dump_tojson()
         return str
+
 
 class Response(FieldCollector):
     def dump_fromjson(self):
@@ -530,6 +533,7 @@ class Response(FieldCollector):
         for field in self.fields:
             str += field.dump_init()
         return str
+
 
 class Interface:
     def __init__(self):
@@ -584,6 +588,9 @@ class Interface:
         #source file
 
 
+def key_value_field(keyName):
+    equal = Suppress("=")
+    return Group(keyName + equal + quotedString)
 
 ######################################## parse  tokens ####################################
 def load_grammar():
@@ -594,20 +601,26 @@ def load_grammar():
     rbracket = Suppress(")")
     semicolon = Suppress(";")
     at = Suppress("@")
+    comma = Suppress(",")
     equal = Suppress("=")
     word = Word(alphanums + "_/")
     interface_key = "Interface"
     interface_name = word
     request_key = "Request"
     response_key = "Response"
+    jsonname_key = "jsonname"
     description_key = "description"
     optional_key = "optional"
     field_name = word
 
     field_type = oneOf("short int string vector<short> vector<int> vector<string>")
-    description = Group(lbracket + at + description_key + equal + quotedString + rbracket)
-    jdname = Group(at + word + equal + quotedString)
-    field = Group(Optional(description) +  jdname + field_type + field_name + Optional(optional_key) + semicolon)
+    description = Group(at + description_key + equal + quotedString)
+    jsonname = Group(at + jsonname_key + equal + quotedString)
+    keyValueField = Group(word + equal + quotedString)
+    jsonField = Group(jsonname + Optional(comma + key_value_field(description_key)) \
+                      + Optional(comma + key_value_field(optional_key)))
+    # field = Group(Optional(description) + jsonname + field_type + field_name + Optional(optional_key) + semicolon)
+    field = Group(jsonField + field_type + field_name + semicolon)
     request = Group(request_key + lbrace + OneOrMore(field) + rbrace + semicolon)
     response = Group(response_key + lbrace + OneOrMore(field) + rbrace + semicolon)
     interface = Group(Optional(description) \
@@ -618,40 +631,40 @@ def load_grammar():
 
     return OneOrMore(interface).ignore(cppStyleComment)
 
+
 def parse_interface(interface_token):
     if type(interface_token) != list:
-        print u"[错误]不支持的interface_token类型：" + type(interface_token)
+        print u"[ERROR] Unsupported interface_token type:<" + type(interface_token) + u">"
         print interface_token
 
     interface = Interface()
     interface_token_len = len(interface_token)
 
-    #interface description
+    # interface description
     description_dis = 0
-    if interface_token_len == 5:    #有注释
+    if 5 == interface_token_len:    # Have Comments here
         interface.description = parse_description(interface_token[0])
         description_dis = 1
     elif interface_token_len != 4:
-        print u"[错误]expected interface_token_len is [4-5], actually is :" + str(interface_token_len)
+        print u"[ERROR] Expected interface_token_len is [4-5], actually is: " + str(interface_token_len)
         print interface_token
         return
 
-    #interface keyword
-    #interface_token[description_dis]
+    # interface keyword
+    # interface_token[description_dis]
 
-    #interface name
+    # interface name
     interface_name = interface_token[description_dis + 1]
     if type(interface_name) != str:
-        print u"[错误]错误的接口名类型." + type(interface_name)
-        print interface_name
+        print u"[ERROR]Interface name <" + interface_name + u">should be str type, but now: " + type(interface_name)
         return
     interface.name = interface_name
 
-    #interface request
+    # interface request
     interface_request = interface_token[description_dis + 2]
     interface.request = parse_request(interface_request)
 
-    #interface response
+    # interface response
     interface_response = interface_token[description_dis + 3]
     if type(interface_response) != list:
         print u"[错误]错误的response类型." + type(interface_response)
@@ -661,28 +674,50 @@ def parse_interface(interface_token):
 
     return interface
 
+
 def parse_description(description_tokens):
     if type(description_tokens) == list and len(description_tokens) == 2:
         if type(description_tokens[1] == str) and description_tokens[1] != "":
-            return description_tokens[1]
+            return description_tokens[1].strip("\"")
     return ""
 
-def parse_request(request_tokens, object_type = "request"):
+
+def parse_key_value_field(keyvalue_tokens):
+    if type(keyvalue_tokens) == list and len(keyvalue_tokens) == 2:
+        if type(keyvalue_tokens[1] == str) and keyvalue_tokens[1] != "":
+            return keyvalue_tokens[1].strip("\"")
+    return ""
+
+
+def parse_to_key_value_field_arrays(tokens):
+    key_value = {"jsonname":""}
+    for m in range(len(tokens)):
+        keyName = tokens[m][0];
+        if keyName == "jsonname":
+            key_value["jsonname"] = parse_key_value_field(tokens[m])
+        elif keyName == "description":
+            key_value["description"] = parse_key_value_field(tokens[m])
+        elif keyName == "optional":
+            key_value["optional"] = parse_key_value_field(tokens[m])
+    return key_value
+
+
+def parse_request(request_tokens, object_type="request"):
     if type(request_tokens) != list:
-        print u"[错误]错误的request/response类型." + str(type(request_tokens))
+        print u"[ERROR] Wrong request/response type define: " + str(type(request_tokens))
         print request_tokens
         return
 
     request_token_len = len(request_tokens)
-    if request_token_len  <2:
-        print u"[错误]request/response缺少有效字段.期望字段数[>=2],实际字段数:" + str(request_token_len)
+    if request_token_len < 2:
+        print u"[ERROR] Unexpected end field of request/response, expected:[>=2], actual:" + str(request_token_len)
         print request_tokens
         return
 
     object = Request() if (object_type == "request") else Response()
     for i in range(request_token_len):
-        if i == 0 :
-            #request/response keyword
+        if i == 0:
+            # request/response keyword
             pass
         else:
             field = parse_field(request_tokens[i])
@@ -690,75 +725,67 @@ def parse_request(request_tokens, object_type = "request"):
                 object.fields.append(field)
     return object
 
+
 def parse_response(response_tokens):
     return parse_request(response_tokens, "response")
 
+
 def parse_field(field_tokens):
     if type(field_tokens) != list:
-        print u"[错误]错误的field类型." + str(type(field_tokens))
+        print u"[ERROR] Wrong field type: " + str(type(field_tokens))
         print field_tokens
         return
 
     field_token_len = len(field_tokens)
-    if field_token_len > 5 or field_token_len < 3:
-        print u"[错误]expected field_token_len is [3-5], actually is :" + str(field_token_len)
+    if field_token_len != 3:
+        print u"[ERROR]expected field_token_len should be 3, actually is: " + str(field_token_len)
         print field_tokens
         return
 
     field = Field()
 
-    #field description
-    description_dis = 0
-    if type(field_tokens[0]) == list: #注释
-        field_description_token = parse_description(field_tokens[0])
-        if field_description_token == "":
-            print u"[警告]无效的注释，已忽略."
-            print field_tokens[0]
-        field.description = field_description_token
-        description_dis = 1
-
-    #field jdname
-    field_jdname_token = field_tokens[description_dis]
-    if type(field_jdname_token) == list: #注释
-        jdname = parse_description(field_jdname_token)
-        if jdname == "":
-            print u"[警告]无效的注释，已忽略."
-            print field_jdname_token
-            return
-        field.jdname = jdname.strip("\"")
-    else:
-        print u"[错误]无效的field jdname类型." + str(type(field_jdname_token))
-        print field_jdname_token
+    # jsonname field
+    jsonname_field_tokens = field_tokens[0]
+    if type(jsonname_field_tokens) != list:
+        print u"[ERROR] Wrong jsonname_field_tokens type: " + str(type(jsonname_field_tokens))
+        print jsonname_field_tokens
         return
 
-    #field type
-    field_type_token = field_tokens[description_dis + 1]
+    key_values = parse_to_key_value_field_arrays(jsonname_field_tokens)
+    if key_values["jsonname"] == "":
+        print u"[ERROR] jsonname field is NULL!"
+        print jsonname_field_tokens
+        return
+    field.jsonname = key_values["jsonname"]
+
+    if "description" in key_values and key_values["description"] != "":
+        field.description = key_values["description"]
+
+    if "optional" in key_values and key_values["optional"] == "true":
+        field.optional = 1
+
+    # field type
+    field_type_token = field_tokens[1]
     if type(field_type_token) != str:
-        print u"[错误]错误的field type类型." + str(type(field_type_token))
+        print u"[ERROR] Wrong field type: " + str(type(field_type_token))
         print field_type_token
         return
     field.type = field_type_token
 
-    #field name
-    field_name_token = field_tokens[description_dis + 2]
+    # field name
+    field_name_token = field_tokens[2]
     if type(field_name_token) != str:
-        print u"[错误]错误的field_name类型." + str(type(field_name_token))
+        print u"[ERROR] Wrong field_name type: " + str(type(field_name_token))
         print field_name_token
         return
     field.name = field_name_token
 
-    #field optional
-    if field_token_len == (description_dis + 3) + 1:
-        field_optional_token = field_tokens[description_dis + 3]
-        if type(field_optional_token) == str and field_optional_token == "optional":
-            field.optional = 1
-        else:
-            print u"[警告]无效的字段修饰符:" + field_optional_token + ". 已忽略"
     return field
 
 
-
-######################################## generate c++ files ####################################
+'''
+################################ generate c++ files ####################################
+'''
 def generate_base(base_directory):
     macro_h = open(base_directory + os.sep + "macro.h", "w")
     macro_h.write(MACRO_H)
@@ -768,24 +795,26 @@ def generate_base(base_directory):
     base_h.write(BASE_H)
     base_h.close()
 
-    #rapidjson library
-    if os.path.exists(rapidjson_path) == False:
-        print u"[错误]rapidjson库路径不存在." + os.path.abspath(rapidjson_path)
+    # rapidjson library
+    if not os.path.exists(rapidjson_path):
+        print u"[ERROR] rapidjson库路径不存在." + os.path.abspath(rapidjson_path)
         exit(-1)
-    if os.path.isdir(rapidjson_path) == False:
-        print u"[错误]rapidjson库路径不是目录." + os.path.abspath(rapidjson_path)
+    if not os.path.isdir(rapidjson_path):
+        print u"[ERROR] rapidjson库路径不是目录." + os.path.abspath(rapidjson_path)
         exit(-1)
 
     try:
         rapidjson_directory = base_directory + os.sep + "rapidjson"
-        if os.path.exists(rapidjson_directory) == True:
+        if os.path.exists(rapidjson_directory):
             shutil.rmtree(rapidjson_directory)
         shutil.copytree(os.path.abspath(rapidjson_path), rapidjson_directory)
     except Exception, e:
         print e
 
+
 def generate_test(base_directory):
     pass
+
 
 def generate_interface(base_directory, interface):
     header =  FILE_HEADER + interface.dump() + FILE_FOOTER
@@ -801,33 +830,37 @@ def generate_files(tokens, base_directory):
         print tokens
         return
 
-    #base files
+    # base files
     generate_base(base_directory)
 
+    print "--- tokens ---"
+    print tokens
     for interface_token in tokens:
         interface = parse_interface(interface_token)
         generate_interface(base_directory, interface)
 
 
-
-########################################      main           ####################################
+'''
+##################################      main           ####################################
+'''
 def usage():
     print "json2cpp {grammar_file} {generated_directory}"
+
 
 def parse_param(argv):
     grammar_file = argv[1]
     base_directory = argv[2]
 
-    if os.path.exists(grammar_file) == False:
+    if not os.path.exists(grammar_file):
         print u"[错误]文件不存在:" + os.path.abspath(grammar_file)
         exit(-1)
 
-        if os.path.isfile(grammar_file) == False:
+        if not os.path.isfile(grammar_file):
             print u"[错误]" + os.path.abspath(grammar_file) + u"不是有效的文件."
             exit(-1)
 
     base_directory = base_directory + os.sep + "jsf"
-    if os.path.exists(base_directory) == False:
+    if not os.path.exists(base_directory):
         try:
             os.makedirs(base_directory)
         except OSError, why:
