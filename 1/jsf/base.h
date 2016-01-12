@@ -107,7 +107,7 @@ public:
 
     virtual void Clear()
     {
-        this->m_tValue.clear();
+		T().swap(this->m_tValue);
         this->m_bSet = false;
 
         //无法编译通过，因为是继承模板类

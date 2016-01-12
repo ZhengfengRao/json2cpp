@@ -1,0 +1,70 @@
+[
+    ['description', '"balabala...."'], 
+    'Interface', 
+    'AddInvoice', 
+    [
+        'Request', 
+        [
+            ['description', '"\xc0\xb4\xd4\xb4"'], 
+            ['jdname', '"sourceId"'], 
+            'int', 
+            'source'
+        ], 
+        [
+            ['description', '"\xbf\xaa\xc6\xb1\xbb\xfa\xb9\xb9"'], 
+            ['jdname', '"orgId"'], 
+            'int', 
+            'organizationId'
+        ], 
+        [
+            ['description', '"\xbf\xaa\xc6\xb1\xc0\xe0\xd0\xcd"'],
+            ['jdname', '"ivcType"'], 
+            'int', 
+            'invoiceType'
+        ], 
+        [
+            ['description', '"\xc9\xea\xc7\xeb\xb5\xa5\xba\xc5"'], 
+            ['jdname', '"reqNo"'], 
+            'string', 'requestNo'
+        ], 
+        [
+            ['description', '"\xb8\xb6\xbf\xee\xb7\xbd\xca\xb6\xb1\xf0\xba\xc5"'],
+            ['jdname', '"payerNo"'], 
+            'string', 
+            'payNo'
+        ], 
+        [
+            ['description', '"\xca\xd5\xbf\xee\xb7\xbd\xca\xb6\xb1\xf0\xba\xc5"'],
+            ['jdname', '"receiverNo"'],
+            'string',
+            'receiverNo',
+            'optional'
+        ], 
+        [
+            ['description', '"\xb6\xa9\xb5\xa5\xc1\xd0\xb1\xed"'],
+            ['jdname', '"businessIds"'],
+            'vector<string>', 'bussinessIds'
+        ]
+    ],
+    [
+        'Response', 
+        [
+            ['description', '"\xd2\xb5\xce\xf1\xb7\xb5\xbb\xd8\xb4\xfa\xc2\xeb"'], 
+            ['jdname', '"code"'], 
+            'string', 
+            'code'
+        ], 
+        [
+            ['description', '"\xd2\xb5\xce\xf1\xb7\xb5\xbb\xd8\xd0\xc5\xcf\xa2"'], 
+            ['jdname', '"msg"'], 
+            'string', 
+            'message'
+        ], 
+        [
+            ['description', '"\xc9\xea\xc7\xeb\xb5\xa5\xba\xc5"'], 
+            ['jdname', '"reqNo"'], 
+            'string', 
+            'requestNo'
+        ]
+    ]
+]

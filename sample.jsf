@@ -27,6 +27,64 @@
 示例如下：
 */
 
+@description="地址结构体"
+class Address{	//自定义结构体
+	@jsonname="provinceNo", description="地址编号"
+    int provinceNo;	
+	
+	@jsonname="provinceStr", description="省"
+    string province;	
+	
+	@jsonname="city", description="市"
+    string city;	
+	
+	@jsonname="town", description="区县镇"
+    string town;
+	
+	@jsonname="address", description="详细地址"
+    string address;
+	
+	@jsonname="optionalAddress", description="备选发票地址"
+    vector<Address> optionalAddress;
+};
+
+@description="发票结构体"
+class InvoiceTicket{
+	@jsonname="invoiceType", description="发票类型"
+    string invoiceType;
+	
+	@jsonname="invoiceCode", description="发票代码"
+    string invoiceCode;
+	
+	@jsonname="invoiceNo", description="发票号码"
+    string invoiceNo;
+	
+	@jsonname="amount", description="开票金额"
+    string amount;
+	
+	@jsonname="invoiceTime", description="开票时间"
+    string invoiceTime;
+	
+	@jsonname="state", description="状态"
+    string state;
+	
+	@jsonname="bussinessId", description="订单号"
+    string bussinessId;
+	
+	@jsonname="operatorCode", description="开票人"
+    string operatorCode;
+	
+	@jsonname="operatorName", description="开票人名称"
+    string operatorName;
+	
+	@jsonname="invoiceAddress", description="发票地址"
+    Address address;
+	
+	@jsonname="optionalAddress", description="备选发票地址"
+    vector<Address> optionalAddress;
+};
+
+
 @description="申请开票接口  balabala...."			//接口说明
 Interface AddInvoice{
 	Request{
@@ -66,3 +124,4 @@ Interface AddInvoice{
 //		vector<string> bussinessIds optional;				//可选字段
 	};
 };
+

@@ -133,7 +133,7 @@ public:
 
     virtual void Clear()
     {
-        this->m_tValue.clear();
+        T().swap(this->m_tValue);
         this->m_bSet = false;
 
         //无法编译通过，因为是继承模板类
@@ -407,6 +407,12 @@ class Field:
         # return self.type != "" and self.name != "" and self.jsonname != ""
         return self.type != "" and self.name != ""
 
+    def get_field_type2(self):
+        if "vector" in self.type:
+            return "VectorField<" + self.type + ">"
+        else:
+            return "Field<" + self.type + ">"
+
     def get_field_type(self):
         if self.type == "vector<int>":
             return "VectorField<std::vector<int> >"
@@ -418,6 +424,17 @@ class Field:
             return "Field<std::string>"
         else:
             return "Field<" + self.type + ">"
+
+    def get_tojson_method2(self):
+        if self.type in ["short", "int"]:
+            return "TOJSON_REQUEST_FIELD_INT"
+        elif self.type == "string":
+            return "TOJSON_REQUEST_FIELD_STRING"
+        elif "vector" in self.type:
+            return "TOJSON_REQUEST_FIELD_ARRAY"
+        else:
+            print "[警告]不支持的变量类型:" + self.type
+            return ""
 
     def get_tojson_method(self):
         if self.type in ["short", "int"]:
@@ -445,7 +462,7 @@ class Field:
     def dump_declaration(self):
         str = ""
         if self.is_valid():
-            str = "\t" + self.get_field_type() + "\t\t\tm_" + self.name + ";"
+            str = "\t" + self.get_field_type2() + "\t\t\tm_" + self.name + ";"
             if self.description != "":
                 str += "\t\t\t//" + self.description.decode("gbk")
         return str
@@ -496,7 +513,7 @@ class FieldCollector:
     def dump_declaration(self):
         str = "public:\n"
         for field in self.fields:
-            str += field.dump_declaration();
+            str += field.dump_declaration()
             str += "\n"
         return str
 
@@ -533,6 +550,23 @@ class Response(FieldCollector):
         for field in self.fields:
             str += field.dump_init()
         return str
+
+
+class Class(FieldCollector):
+    def __init__(self):
+        self.description = ""
+        self.name = ""
+
+    def dump(self):
+        class_str = "class " + self.name + " {\n" \
+            + self.dump_declaration() \
+            + "\npublic:\n" \
+            + "\t" + self.name + "()\n" \
+            + self.dump_initialize_list() \
+            + "\t{}\n\n" \
+            + "\t~" + self.name + "(){}\n\n" \
+            + "};"
+        return class_str
 
 
 class Interface:
@@ -605,6 +639,7 @@ def load_grammar():
     equal = Suppress("=")
     word = Word(alphanums + "_/")
     interface_key = "Interface"
+    class_key = "class"
     interface_name = word
     request_key = "Request"
     response_key = "Response"
@@ -613,7 +648,8 @@ def load_grammar():
     optional_key = "optional"
     field_name = word
 
-    field_type = oneOf("short int string vector<short> vector<int> vector<string>")
+    #field_type = oneOf("short int string vector<short> vector<int> vector<string>")
+    field_type = Word(alphanums + "_/<>")
     description = Group(at + description_key + equal + quotedString)
     jsonname = Group(at + jsonname_key + equal + quotedString)
     keyValueField = Group(word + equal + quotedString)
@@ -629,7 +665,18 @@ def load_grammar():
         + response\
         + rbrace + semicolon)
 
-    return OneOrMore(interface).ignore(cppStyleComment)
+    classGram = Group(Optional(description) \
+        + class_key + interface_name + lbrace \
+        + OneOrMore(field) \
+        + rbrace + semicolon)
+
+    grammar = ZeroOrMore(classGram) + OneOrMore(interface)
+    return OneOrMore(grammar).ignore(cppStyleComment)
+
+
+def parse_class(class_token):
+    return 0
+
 
 
 def parse_interface(interface_token):
@@ -835,9 +882,11 @@ def generate_files(tokens, base_directory):
 
     print "--- tokens ---"
     print tokens
+    print "-----------------"
     for interface_token in tokens:
-        interface = parse_interface(interface_token)
-        generate_interface(base_directory, interface)
+        print interface_token
+        #interface = parse_interface(interface_token)
+        #generate_interface(base_directory, interface)
 
 
 '''
