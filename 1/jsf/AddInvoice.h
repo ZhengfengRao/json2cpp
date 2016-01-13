@@ -45,7 +45,7 @@ public:
 		TOJSON_REQUEST_FIELD_STRING(m_requestNo, root, allocator);
 		TOJSON_REQUEST_FIELD_STRING(m_payNo, root, allocator);
 		TOJSON_REQUEST_FIELD_STRING(m_receiverNo, root, allocator);
-		TOJSON_REQUEST_FIELD_ARRAY(m_bussinessIds, root, allocator);
+		TOJSON_REQUEST_FIELD_STR_ARRAY(m_bussinessIds, root, allocator);
 
         JSONVALUE_TOSTRING(root, strJson);
         return ERR_OK;

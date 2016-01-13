@@ -39,7 +39,7 @@ namespace json2cpp{
     { \
         jsonObject.SetString(rapidjson::StringRef(field.GetValue().c_str())); \
     }
-	
+
 #define TOJSON_REQUEST_FIELD_OBJECT(field, jsonObject, allocator) \
     if(field.IsValueSet()) \
     { \
@@ -58,7 +58,7 @@ namespace json2cpp{
         } \
         jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \
     }
-	
+
 #define TOJSON_REQUEST_FIELD_NUM_ARRAY(field, jsonObject, allocator) \
     if(field.IsValueSet()) \
     { \
@@ -71,7 +71,7 @@ namespace json2cpp{
         } \
         jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \
     }
-	
+
 #define TOJSON_REQUEST_FIELD_OBJECT_ARRAY(field, jsonObject, allocator) \
     if(field.IsValueSet()) \
     { \
