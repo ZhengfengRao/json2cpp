@@ -9,34 +9,27 @@ public:
 	Field<string>			m_city;				//市
 	Field<string>			m_town;				//区县镇
 	Field<string>			m_address;				//详细地址
-	VectorField<vector<Address>>			m_optionalAddress;				//备选发票地址
 
 public:
 	Address() : 
-m_provinceNo("provinceNo", true)
+		 m_provinceNo("provinceNo", true)
 		,m_province("provinceStr", true)
 		,m_city("city", true)
 		,m_town("town", true)
 		,m_address("address", true)
-		,m_optionalAddress("optionalAddress", true)
 	{}
 
 	~Address(){}
 
-	rapidjson::Value ToJson() const
+	void ToJson(rapidjson::Value& root, rapidjson::Document::AllocatorType& allocator) const
     {
-        rapidjson::Document doc;
-        rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
-        rapidjson::Value root(rapidjson::kObjectType);
 
 		TOJSON_REQUEST_FIELD_INT(m_provinceNo, root, allocator);
 		TOJSON_REQUEST_FIELD_STRING(m_province, root, allocator);
 		TOJSON_REQUEST_FIELD_STRING(m_city, root, allocator);
 		TOJSON_REQUEST_FIELD_STRING(m_town, root, allocator);
 		TOJSON_REQUEST_FIELD_STRING(m_address, root, allocator);
-		TOJSON_REQUEST_FIELD_ADDRESS_ARRAY(m_optionalAddress, root, allocator);
 
-        return root;
     }
 };
 
@@ -53,11 +46,11 @@ public:
 	Field<string>			m_operatorCode;				//开票人
 	Field<string>			m_operatorName;				//开票人名称
 	Field<Address>			m_address;				//发票地址
-	VectorField<vector<Address>>			m_optionalAddress;				//备选发票地址
+	VectorField<vector<Address> >			m_optionalAddress;				//备选发票地址
 
 public:
 	InvoiceTicket() : 
-m_invoiceType("invoiceType", true)
+		 m_invoiceType("invoiceType", true)
 		,m_invoiceCode("invoiceCode", true)
 		,m_invoiceNo("invoiceNo", true)
 		,m_amount("amount", true)
@@ -72,11 +65,8 @@ m_invoiceType("invoiceType", true)
 
 	~InvoiceTicket(){}
 
-	rapidjson::Value ToJson() const
+	void ToJson(rapidjson::Value& root, rapidjson::Document::AllocatorType& allocator) const
     {
-        rapidjson::Document doc;
-        rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
-        rapidjson::Value root(rapidjson::kObjectType);
 
 		TOJSON_REQUEST_FIELD_STRING(m_invoiceType, root, allocator);
 		TOJSON_REQUEST_FIELD_STRING(m_invoiceCode, root, allocator);
@@ -90,7 +80,6 @@ m_invoiceType("invoiceType", true)
 		TOJSON_REQUEST_FIELD_OBJECT(m_address, root, allocator);
 		TOJSON_REQUEST_FIELD_ADDRESS_ARRAY(m_optionalAddress, root, allocator);
 
-        return root;
     }
 };
 
@@ -103,7 +92,8 @@ public:
 	Field<string>			m_requestNo;				//申请单号
 	Field<string>			m_payNo;				//付款方识别号
 	Field<string>			m_receiverNo;				//收款方识别号
-	VectorField<vector<string>>			m_bussinessIds;				//订单列表
+	VectorField<vector<string> >			m_bussinessIds;				//订单列表
+	Field<InvoiceTicket>			m_invoiceTicket;				//发票
 
 public:
 	AddInvoiceRequest()
@@ -115,6 +105,7 @@ public:
 		,m_payNo("payerNo", true)
 		,m_receiverNo("receiverNo", false)
 		,m_bussinessIds("businessIds", true)
+		,m_invoiceTicket("invoiceTicket", true)
 	{}
 
 	~AddInvoiceRequest()
@@ -139,6 +130,7 @@ public:
 		TOJSON_REQUEST_FIELD_STRING(m_payNo, root, allocator);
 		TOJSON_REQUEST_FIELD_STRING(m_receiverNo, root, allocator);
 		TOJSON_REQUEST_FIELD_STRING_ARRAY(m_bussinessIds, root, allocator);
+		TOJSON_REQUEST_FIELD_OBJECT(m_invoiceTicket, root, allocator);
 
         JSONVALUE_TOSTRING(root, strJson);
         return ERR_OK;
@@ -153,6 +145,7 @@ public:
 		CHECK_REQUEST_FIELD(m_payNo, strErrMsg);
 		CHECK_REQUEST_FIELD(m_receiverNo, strErrMsg);
 		CHECK_REQUEST_FIELD(m_bussinessIds, strErrMsg);
+		CHECK_REQUEST_FIELD(m_invoiceTicket, strErrMsg);
 
         return true;
     }

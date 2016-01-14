@@ -44,8 +44,8 @@ class Address{	//自定义结构体
 	@jsonname="address", description="详细地址"
     string address;
 	
-	@jsonname="optionalAddress", description="备选发票地址"
-    vector<Address> optionalAddress;
+	//@jsonname="optionalAddress", description="备选发票地址"
+    //vector<Address> optionalAddress;
 };
 
 @description="发票结构体"
@@ -108,6 +108,9 @@ Interface AddInvoice{
 
 		@jsonname="businessIds", description="订单列表"
 		vector<string> bussinessIds;
+		
+		@jsonname="invoiceTicket", description="发票"
+		InvoiceTicket invoiceTicket;
 	};
 
 	Response{

@@ -287,7 +287,9 @@ namespace json2cpp{
 #define TOJSON_REQUEST_FIELD_OBJECT(field, jsonObject, allocator) \\
     if(field.IsValueSet()) \\
     { \\
-        jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), field.GetValue().ToJson(), allocator); \\
+        rapidjson::Value objectValue(rapidjson::kObjectType); \\
+        field.GetValue().ToJson(objectValue, allocator); \\
+        jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), objectValue, allocator); \\
     }
 
 #define TOJSON_REQUEST_FIELD_STR_ARRAY(field, jsonObject, allocator) \\
@@ -299,32 +301,6 @@ namespace json2cpp{
             it++) \\
         { \\
             value.PushBack(rapidjson::StringRef(it->c_str()), allocator); \\
-        } \\
-        jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \\
-    }
-
-#define TOJSON_REQUEST_FIELD_NUM_ARRAY(field, jsonObject, allocator) \\
-    if(field.IsValueSet()) \\
-    { \\
-        rapidjson::Value value(rapidjson::kArrayType); \\
-        for(std::vector<std::string>::const_iterator it = field.GetValue().begin(); \\
-            it != field.GetValue().end(); \\
-            it++) \\
-        { \\
-            value.PushBack(*it, allocator); \\
-        } \\
-        jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \\
-    }
-
-#define TOJSON_REQUEST_FIELD_OBJECT_ARRAY(field, jsonObject, allocator) \\
-    if(field.IsValueSet()) \\
-    { \\
-        rapidjson::Value value(rapidjson::kArrayType); \\
-        for(std::vector<std::string>::const_iterator it = field.GetValue().begin(); \\
-            it != field.GetValue().end(); \\
-            it++) \\
-        { \\
-            value.PushBack(it->ToJson(), allocator); \\
         } \\
         jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \\
     }
@@ -348,18 +324,14 @@ namespace json2cpp{
     str= buffer.GetString();
 
 }
-#endif	/* JSON2CPP_MACRO_H */
+
 '''
 
-CLASS_TOJSON_HEADER = '''	rapidjson::Value ToJson() const
+CLASS_TOJSON_HEADER = '''	void ToJson(rapidjson::Value& root, rapidjson::Document::AllocatorType& allocator) const
     {
-        rapidjson::Document doc;
-        rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
-        rapidjson::Value root(rapidjson::kObjectType);
 '''
 
 CLASS_TOJSON_FOOTER = '''
-        return root;
     }
 '''
 
@@ -452,7 +424,7 @@ def construct_request_iter_marco(vec_type):
                        \t{ \\\n \
                        \t\trapidjson::Value value(rapidjson::kArrayType); \\\n"
     common_str_foot = "\t\tjsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \\\n \
-                       \t}\n"
+                       \t}\n\n"
 
     if vec_type in normal_type:    # Normal Type (Numbers)
         print "Normal"
@@ -483,12 +455,14 @@ def construct_request_iter_marco(vec_type):
         request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
                 "_ARRAY(field, jsonObject, allocator) \\\n" + \
                 common_str_head + \
-                "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n \
+                "\t\tfor(std::vector<" + vec_type + '>::const_iterator it = field.GetValue().begin(); \\\n \
                 \t\t\tit != field.GetValue().end(); \\\n \
                 \t\t\tit++) \\\n \
                 \t\t{ \\\n \
-                \t\t\tvalue.PushBack(it->ToJson(), allocator); \\\n \
-                \t\t} \\\n" + \
+                \t\t\trapidjson::Value objectValue(rapidjson::kObjectType); \\\n \
+                \t\t\tit->ToJson(objectValue, allocator); \\\n \
+                \t\t\tvalue.PushBack(objectValue, allocator); \\\n \
+                \t\t} \\\n' + \
                 common_str_foot
     request_iter_marcos[vec_type] = "TOJSON_REQUEST_FIELD_" + vec_type.upper() + "_ARRAY"
 
@@ -507,7 +481,7 @@ class Field:
 
     def get_field_type2(self):
         if "vector" in self.type:
-            return "VectorField<" + self.type + ">"
+            return "VectorField<" + self.type + " >"
         else:
             return "Field<" + self.type + ">"
 
@@ -683,11 +657,14 @@ class Class(FieldCollector):
 
     def dump(self):
         init_list = self.dump_initialize_list()
+        init_list = list(init_list)
+        init_list[2] = " "
+        init_list = "".join(init_list)
         class_str = "class " + self.name + "\n{\n" \
             + self.dump_declaration() \
             + "\npublic:\n" \
             + "\t" + self.name + "() : \n" \
-            + init_list[3:len(init_list)] \
+            + init_list \
             + "\t{}\n\n" \
             + "\t~" + self.name + "(){}\n\n" \
             + self.dump_to_json() \
@@ -988,9 +965,9 @@ def parse_field(field_tokens):
 '''
 ################################ generate c++ files ####################################
 '''
-def generate_base(base_directory):
+def generate_base(macros, base_directory):
     macro_h = open(base_directory + os.sep + "macro.h", "w")
-    macro_h.write(MACRO_H)
+    macro_h.write(macros)
     macro_h.close()
 
     base_h = open(base_directory + os.sep + "base.h", "w")
@@ -1036,9 +1013,6 @@ def generate_files(tokens, base_directory):
         print tokens
         return
 
-    # base files
-    generate_base(base_directory)
-
     print "--- tokens ---"
     print tokens
     print "-----------------"
@@ -1057,6 +1031,12 @@ def generate_files(tokens, base_directory):
             return
 
     generate_interface(base_directory, class_fields, interface)
+    str_out = MACRO_H
+    for macros in request_iter_marcos_file:
+        str_out += request_iter_marcos_file[macros]
+    str_out += "\n#endif	/* JSON2CPP_MACRO_H */\n"
+    # base files
+    generate_base(str_out, base_directory)
 
 
 '''

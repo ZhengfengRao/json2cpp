@@ -43,7 +43,9 @@ namespace json2cpp{
 #define TOJSON_REQUEST_FIELD_OBJECT(field, jsonObject, allocator) \
     if(field.IsValueSet()) \
     { \
-        jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), field.GetValue().ToJson(), allocator); \
+        rapidjson::Value objectValue(rapidjson::kObjectType); \
+        field.GetValue().ToJson(objectValue, allocator); \
+        jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), objectValue, allocator); \
     }
 
 #define TOJSON_REQUEST_FIELD_STR_ARRAY(field, jsonObject, allocator) \
@@ -55,32 +57,6 @@ namespace json2cpp{
             it++) \
         { \
             value.PushBack(rapidjson::StringRef(it->c_str()), allocator); \
-        } \
-        jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \
-    }
-
-#define TOJSON_REQUEST_FIELD_NUM_ARRAY(field, jsonObject, allocator) \
-    if(field.IsValueSet()) \
-    { \
-        rapidjson::Value value(rapidjson::kArrayType); \
-        for(std::vector<std::string>::const_iterator it = field.GetValue().begin(); \
-            it != field.GetValue().end(); \
-            it++) \
-        { \
-            value.PushBack(*it, allocator); \
-        } \
-        jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \
-    }
-
-#define TOJSON_REQUEST_FIELD_OBJECT_ARRAY(field, jsonObject, allocator) \
-    if(field.IsValueSet()) \
-    { \
-        rapidjson::Value value(rapidjson::kArrayType); \
-        for(std::vector<std::string>::const_iterator it = field.GetValue().begin(); \
-            it != field.GetValue().end(); \
-            it++) \
-        { \
-            value.PushBack(it->ToJson(), allocator); \
         } \
         jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \
     }
@@ -104,4 +80,34 @@ namespace json2cpp{
     str= buffer.GetString();
 
 }
+
+#define TOJSON_REQUEST_FIELD_STRING_ARRAY(field, jsonObject, allocator) \
+	if(field.IsValueSet()) \
+                        	{ \
+                        		rapidjson::Value value(rapidjson::kArrayType); \
+		for(std::vector<string>::const_iterator it = field.GetValue().begin(); \
+                 			it != field.GetValue().end(); \
+                 			it++) \
+                 		{ \
+                 			value.PushBack(rapidjson::StringRef(it->c_str()), allocator); \
+                 		} \
+		jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \
+                        	}
+
+#define TOJSON_REQUEST_FIELD_ADDRESS_ARRAY(field, jsonObject, allocator) \
+	if(field.IsValueSet()) \
+                        	{ \
+                        		rapidjson::Value value(rapidjson::kArrayType); \
+		for(std::vector<Address>::const_iterator it = field.GetValue().begin(); \
+                 			it != field.GetValue().end(); \
+                 			it++) \
+                 		{ \
+                 			rapidjson::Value objectValue(rapidjson::kObjectType); \
+                 			it->ToJson(objectValue, allocator); \
+                 			value.PushBack(objectValue, allocator); \
+                 		} \
+		jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \
+                        	}
+
+
 #endif	/* JSON2CPP_MACRO_H */
