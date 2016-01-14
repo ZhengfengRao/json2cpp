@@ -495,7 +495,7 @@ def construct_request_iter_marco(vec_type):
 
 
 def construct_response_iter_marco(vec_type):
-    print "construct_request_iter_marco-->" + vec_type
+    # print "construct_request_iter_marco-->" + vec_type
     normal_type = ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]
     common_str_head = "\tif(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()]." \
                       "IsArray()) \\\n" \
@@ -834,9 +834,11 @@ def load_grammar():
     at = Suppress("@")
     comma = Suppress(",")
     equal = Suppress("=")
+    nspace = Suppress("::")
     word = Word(alphanums + "_/")
     interface_key = "Interface"
     class_key = "class"
+    namespace_key = "namespace"
     interface_name = word
     request_key = "Request"
     response_key = "Response"
@@ -846,6 +848,7 @@ def load_grammar():
     field_name = word
 
     #field_type = oneOf("short int string vector<short> vector<int> vector<string>")
+    namespace_field = Group(namespace_key + word + ZeroOrMore(nspace + word))
     field_type = Word(alphanums + "_/<>")
     description = Group(at + description_key + equal + quotedString)
     jsonname = Group(at + jsonname_key + equal + quotedString)
@@ -867,8 +870,23 @@ def load_grammar():
         + OneOrMore(field) \
         + rbrace + semicolon)
 
-    grammar = ZeroOrMore(classGram) + OneOrMore(interface)
+    grammar = ZeroOrMore(namespace_field) + ZeroOrMore(classGram) + OneOrMore(interface)
     return OneOrMore(grammar).ignore(cppStyleComment)
+
+
+def parse_namspace(token, base_dir):
+    namespace_str = ""
+    base_dir_str = base_dir
+    for i in range(len(token)):
+        if i == 0:
+            pass
+        elif i == 1:
+            namespace_str = token[1]
+            base_dir_str = base_dir_str + os.sep + token[1]
+        else:
+            namespace_str += "::" + token[i]
+            base_dir_str = base_dir_str + os.sep + token[i]
+    return namespace_str, base_dir_str
 
 
 def parse_class(class_token):
@@ -1087,7 +1105,7 @@ def generate_test(base_directory):
     pass
 
 
-def generate_interface(base_directory, class_fields, interface):
+def generate_interface(base_directory, namspace_str, class_fields, interface):
     class_str = ""
     for classField in class_fields:
         class_str += classField.dump()
@@ -1099,7 +1117,7 @@ def generate_interface(base_directory, class_fields, interface):
     header_h.close()
 
 
-def generate_files(tokens, base_directory):
+def generate_files(tokens, base_dir):
     if type(tokens) != list or len(tokens) < 1:
         print u"[错误]无效的tokens. type:" + type(tokens) + ", len:" + len(tokens)
         print tokens
@@ -1109,6 +1127,7 @@ def generate_files(tokens, base_directory):
     print tokens
     print "-----------------"
     class_fields = []
+    namespace_str = ""
     for token in tokens:
         print token
         if (type(token[0]) == list and token[1] == "class") or token[0] == "class":
@@ -1118,11 +1137,24 @@ def generate_files(tokens, base_directory):
         elif (type(token[0]) == list and token[1] == "Interface") or token[0] == "Interface":
             print "Parse Interface..."
             interface = parse_interface(token)
+        elif token[0] == "namespace":
+            print "Parse  namespace..."
+            namespace = parse_namspace(token, base_dir)
         else:
             print "[ERROR] Parsing token failed! No class or Interface key word find!"
             return
 
-    generate_interface(base_directory, class_fields, interface)
+    base_directory = ""
+    if namespace != "":
+        base_directory = namespace[1]
+    # Create dir by namespace
+    if not os.path.exists(base_directory):
+        try:
+            os.makedirs(base_directory)
+        except OSError, why:
+            print u"[错误]创建目标文件夹." + os.path.abspath(base_directory) + u"失败."
+            exit(-1)
+    generate_interface(base_directory, namespace[0], class_fields, interface)
     str_out = MACRO_H
     for req_macros in request_iter_marcos_file:
         str_out += request_iter_marcos_file[req_macros]
@@ -1152,15 +1184,15 @@ def parse_param(argv):
             print u"[错误]" + os.path.abspath(grammar_file) + u"不是有效的文件."
             exit(-1)
 
-    base_directory = base_directory + os.sep + "jsf"
-    if not os.path.exists(base_directory):
-        try:
-            os.makedirs(base_directory)
-        except OSError, why:
-            print u"[错误]创建目标文件夹." + os.path.abspath(base_directory) + u"失败."
-            exit(-1)
+    # base_directory = base_directory + os.sep + "jsf"
+    # if not os.path.exists(base_directory):
+    #     try:
+    #         os.makedirs(base_directory)
+    #     except OSError, why:
+    #         print u"[错误]创建目标文件夹." + os.path.abspath(base_directory) + u"失败."
+    #         exit(-1)
 
-    return os.path.abspath(grammar_file), os.path.abspath(base_directory)
+    return os.path.abspath(grammar_file)
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
@@ -1169,5 +1201,5 @@ if __name__ == "__main__":
 
     file_path = parse_param(sys.argv)
     grammar = load_grammar()
-    tokens = grammar.parseFile(file_path[0]).asList()
-    generate_files(tokens, file_path[1])
+    tokens = grammar.parseFile(file_path).asList()
+    generate_files(tokens, sys.argv[2])
