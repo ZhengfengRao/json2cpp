@@ -1,6 +1,6 @@
 EXE = test
 LIB = 
-INC = -I../
+INC = -I../../
 SRC = test.cpp
 
 $(EXE):$(SRC)

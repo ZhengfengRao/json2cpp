@@ -1,5 +1,5 @@
 #include <iostream>
-#include "AddInvoice.h"
+#include "../jsf/AddInvoice.h"
 #include <fstream>
 
 void test_AddInvoiceRequest()
@@ -77,7 +77,7 @@ void test_AddInvoiceResponse()
     uint32_t status = 200;
 	getline(fin,str);
 	
-	cout << str << endl;
+	//cout << str << endl;
 	
     json2cpp::AddInvoiceResponse response;
     uint32_t ret = response.FromJson(str, status);
