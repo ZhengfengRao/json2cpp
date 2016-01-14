@@ -123,8 +123,11 @@ Interface AddInvoice{
 		@jsonname="reqNo", description="申请单号"
 		string requestNo;
 
-//		@jsonname="businessIds", description="订单列表"
-//		vector<string> bussinessIds optional;				//可选字段
+		@jsonname="businessIds", description="订单列表", optional="true"	//可选字段
+		vector<string> bussinessIds ;
+		
+		@jsonname="invoiceTicket", description="发票"
+		InvoiceTicket invoiceTicket;
 	};
 };
 

@@ -69,6 +69,11 @@ public:
         return m_tValue;
     }
 
+    T& GetValue()
+    {
+        return m_tValue;
+    }
+
     bool IsValueSet() const
     {
         return m_bSet;
@@ -171,44 +176,44 @@ public:
         if(doc.Parse<0>(strJson.c_str()).HasParseError() || !doc.IsObject())
         {
             dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
-			m_JSFCode.SetValue(dwRet);
-			m_JSFMessage.SetValue("string can not be parsed as json object! str:" + strJson);
-		}
-		else
-		{
-			if(doc.HasMember("code") && doc["code"].IsInt())
-			{
-				m_JSFCode.SetValue(doc["code"].GetInt());
-			}
-			else
-			{
-				m_JSFCode.SetValue(status);
-			}
+            m_JSFCode.SetValue(dwRet);
+            m_JSFMessage.SetValue("string can not be parsed as json object! str:" + strJson);
+        }
+        else
+        {
+            if(doc.HasMember("code") && doc["code"].IsInt())
+            {
+                m_JSFCode.SetValue(doc["code"].GetInt());
+            }
+            else
+            {
+                m_JSFCode.SetValue(status);
+            }
 
-			if(doc.HasMember("error") && doc["error"].IsString())
-			{
-				m_JSFMessage.SetValue(doc["error"].GetString());
-			}
-			else//没有按格式返回错误，就将返回的全部字符串保存起来
-			{
-				m_JSFMessage.SetValue(strJson);
-			}
+            if(doc.HasMember("error") && doc["error"].IsString())
+            {
+                m_JSFMessage.SetValue(doc["error"].GetString());
+            }
+            else//没有按格式返回错误，就将返回的全部字符串保存起来
+            {
+                m_JSFMessage.SetValue(strJson);
+            }
 
-			dwRet = ERR_RESPONSE_RETURNED_ERROR_STATE;
-		}
+            dwRet = ERR_RESPONSE_RETURNED_ERROR_STATE;
+        }
 
-		//no need
-		//IsValid()
+        //no need
+        //IsValid()
 
-		return dwRet;
-	}
+        return dwRet;
+    }
 
     virtual bool IsValid(std::string& strErrMsg) const
-	{
-		CHECK_REQUEST_FIELD(m_JSFCode, strErrMsg);
-		CHECK_REQUEST_FIELD(m_JSFMessage, strErrMsg);
+    {
+        CHECK_REQUEST_FIELD(m_JSFCode, strErrMsg);
+        CHECK_REQUEST_FIELD(m_JSFMessage, strErrMsg);
 
-		return true;
+        return true;
     }
 };
 

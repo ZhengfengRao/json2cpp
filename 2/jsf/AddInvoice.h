@@ -31,6 +31,18 @@ public:
 		TOJSON_REQUEST_FIELD_STRING(m_address, root, allocator);
 
     }
+
+    FromJson(const rapidjson::Value& values)
+    {
+
+			FROMJSON_RESPONSE_FIELD_NUMBER(values, m_provinceNo);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_province);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_city);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_town);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_address);
+
+    }
+
 };
 
 class InvoiceTicket
@@ -81,6 +93,24 @@ public:
 		TOJSON_REQUEST_FIELD_ADDRESS_ARRAY(m_optionalAddress, root, allocator);
 
     }
+
+    FromJson(const rapidjson::Value& values)
+    {
+
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_invoiceType);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_invoiceCode);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_invoiceNo);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_amount);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_invoiceTime);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_state);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_bussinessId);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_operatorCode);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_operatorName);
+			FROMJSON_RESPONSE_FIELD_OBJECT(values, m_address);
+			FROMJSON_RESPONSE_FIELD_ADDRESS_ARRAY(values, m_optionalAddress);
+
+    }
+
 };
 
 class AddInvoiceRequest: public IRequest
@@ -157,6 +187,8 @@ public:
 	Field<string>			m_code;				//业务返回代码
 	Field<string>			m_message;				//业务返回信息
 	Field<string>			m_requestNo;				//申请单号
+	VectorField<vector<string> >			m_bussinessIds;				//订单列表
+	Field<InvoiceTicket>			m_invoiceTicket;				//发票
 
 public:
 	AddInvoiceResponse()
@@ -164,6 +196,8 @@ public:
 		,m_code("code", true)
 		,m_message("msg", true)
 		,m_requestNo("reqNo", true)
+		,m_bussinessIds("businessIds", false)
+		,m_invoiceTicket("invoiceTicket", true)
 	{}
 
 	~AddInvoiceResponse()
@@ -176,6 +210,8 @@ public:
 		m_code.Clear();
 		m_message.Clear();
 		m_requestNo.Clear();
+		m_bussinessIds.Clear();
+		m_invoiceTicket.Clear();
    }
 
    virtual uint32_t FromJson(const std::string& strJson, int status)
@@ -198,9 +234,12 @@ public:
         }
         else
         {
-			FROMJSON_RESPONSE_FIELD_STRING(doc, m_code);
-			FROMJSON_RESPONSE_FIELD_STRING(doc, m_message);
-			FROMJSON_RESPONSE_FIELD_STRING(doc, m_requestNo);
+            const rapidjson::Value& values = doc;
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_code);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_message);
+			FROMJSON_RESPONSE_FIELD_STRING(values, m_requestNo);
+			FROMJSON_RESPONSE_FIELD_STRING_ARRAY(values, m_bussinessIds);
+			FROMJSON_RESPONSE_FIELD_OBJECT(values, m_invoiceTicket);
 
             std::string strError;
             if(!IsValid(strError))
@@ -224,6 +263,8 @@ public:
 		CHECK_REQUEST_FIELD(m_code, strErrMsg);
 		CHECK_REQUEST_FIELD(m_message, strErrMsg);
 		CHECK_REQUEST_FIELD(m_requestNo, strErrMsg);
+		CHECK_REQUEST_FIELD(m_bussinessIds, strErrMsg);
+		CHECK_REQUEST_FIELD(m_invoiceTicket, strErrMsg);
 
         return true;
     }

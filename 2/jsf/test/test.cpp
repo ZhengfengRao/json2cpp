@@ -1,5 +1,6 @@
 #include <iostream>
 #include "AddInvoice.h"
+#include <fstream>
 
 void test_AddInvoiceRequest()
 {
@@ -71,9 +72,13 @@ void test_AddInvoiceRequest()
 
 void test_AddInvoiceResponse()
 {
+	ifstream fin("json.txt");
     std::string str = "{\"code\":\"123\",\"msg\":\"fuck\",\"reqNo\":\"1029999\"}";
     uint32_t status = 200;
-
+	getline(fin,str);
+	
+	cout << str << endl;
+	
     json2cpp::AddInvoiceResponse response;
     uint32_t ret = response.FromJson(str, status);
     if(ret != json2cpp::ERR_OK)

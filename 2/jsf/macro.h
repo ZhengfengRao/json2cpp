@@ -61,16 +61,24 @@ namespace json2cpp{
         jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \
     }
 
-#define FROMJSON_RESPONSE_FIELD_INT(doc, field) \
-    if(doc.HasMember(field.GetName().c_str()) && doc[field.GetName().c_str()].IsInt()) \
+#define FROMJSON_RESPONSE_FIELD_NUMBER(values, field) \
+    if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsNumber()) \
     { \
-        field.SetValue(doc[field.GetName().c_str()].GetInt()); \
+        field.SetValue(values[field.GetName().c_str()].GetInt()); \
     }
 
-#define FROMJSON_RESPONSE_FIELD_STRING(doc, field) \
-    if(doc.HasMember(field.GetName().c_str()) && doc[field.GetName().c_str()].IsString()) \
+#define FROMJSON_RESPONSE_FIELD_STRING(values, field) \
+    if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsString()) \
     { \
-        field.SetValue(doc[field.GetName().c_str()].GetString()); \
+        field.SetValue(values[field.GetName().c_str()].GetString()); \
+    }
+
+#define FROMJSON_RESPONSE_FIELD_OBJECT(values, field) \
+    if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsObject()) \
+    { \
+        const rapidjson::Value& val = values[field.GetName().c_str()]; \
+        field.GetValue().FromJson(val); \
+        field.SetValue(field.GetValue()); \
     }
 
 #define JSONVALUE_TOSTRING(json, str) \
@@ -83,31 +91,57 @@ namespace json2cpp{
 
 #define TOJSON_REQUEST_FIELD_STRING_ARRAY(field, jsonObject, allocator) \
 	if(field.IsValueSet()) \
-                        	{ \
-                        		rapidjson::Value value(rapidjson::kArrayType); \
+	{ \
+		rapidjson::Value value(rapidjson::kArrayType); \
 		for(std::vector<string>::const_iterator it = field.GetValue().begin(); \
-                 			it != field.GetValue().end(); \
-                 			it++) \
-                 		{ \
-                 			value.PushBack(rapidjson::StringRef(it->c_str()), allocator); \
-                 		} \
+			it != field.GetValue().end(); \
+			it++) \
+		{ \
+			value.PushBack(rapidjson::StringRef(it->c_str()), allocator); \
+		} \
 		jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \
-                        	}
+	}
 
 #define TOJSON_REQUEST_FIELD_ADDRESS_ARRAY(field, jsonObject, allocator) \
 	if(field.IsValueSet()) \
-                        	{ \
-                        		rapidjson::Value value(rapidjson::kArrayType); \
+	{ \
+		rapidjson::Value value(rapidjson::kArrayType); \
 		for(std::vector<Address>::const_iterator it = field.GetValue().begin(); \
-                 			it != field.GetValue().end(); \
-                 			it++) \
-                 		{ \
-                 			rapidjson::Value objectValue(rapidjson::kObjectType); \
-                 			it->ToJson(objectValue, allocator); \
-                 			value.PushBack(objectValue, allocator); \
-                 		} \
+			it != field.GetValue().end(); \
+			it++) \
+		{ \
+			rapidjson::Value objectValue(rapidjson::kObjectType); \
+			it->ToJson(objectValue, allocator); \
+			value.PushBack(objectValue, allocator); \
+		} \
 		jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \
-                        	}
+	}
+
+#define FROMJSON_RESPONSE_FIELD_STRING_ARRAY(values, field) \
+	if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsArray()) \
+	{ \
+		vector<string> vec; \
+		const rapidjson::Value& val = values[field.GetName().c_str()]; \
+		for (rapidjson::Value::ConstValueIterator itr = val.Begin(); itr != val.End(); ++itr) \
+		{ \
+			vec.push_back(itr->GetString()); \
+		} \
+		field.SetValue(vec); \
+	}
+
+#define FROMJSON_RESPONSE_FIELD_ADDRESS_ARRAY(values, field) \
+	if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsArray()) \
+	{ \
+		vector<Address> vec; \
+		const rapidjson::Value& val = values[field.GetName().c_str()]; \
+		for (rapidjson::Value::ConstValueIterator itr = val.Begin(); itr != val.End(); ++itr) \
+		{ \
+			Address typeVar; \
+			typeVar.FromJson(*itr); \
+			vec.push_back(typeVar); \
+		} \
+		field.SetValue(vec); \
+	}
 
 
 #endif	/* JSON2CPP_MACRO_H */

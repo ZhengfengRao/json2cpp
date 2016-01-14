@@ -95,6 +95,11 @@ public:
         return m_tValue;
     }
 
+    T& GetValue()
+    {
+        return m_tValue;
+    }
+
     bool IsValueSet() const
     {
         return m_bSet;
@@ -197,44 +202,44 @@ public:
         if(doc.Parse<0>(strJson.c_str()).HasParseError() || !doc.IsObject())
         {
             dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
-			m_JSFCode.SetValue(dwRet);
-			m_JSFMessage.SetValue("string can not be parsed as json object! str:" + strJson);
-		}
-		else
-		{
-			if(doc.HasMember("code") && doc["code"].IsInt())
-			{
-				m_JSFCode.SetValue(doc["code"].GetInt());
-			}
-			else
-			{
-				m_JSFCode.SetValue(status);
-			}
+            m_JSFCode.SetValue(dwRet);
+            m_JSFMessage.SetValue("string can not be parsed as json object! str:" + strJson);
+        }
+        else
+        {
+            if(doc.HasMember("code") && doc["code"].IsInt())
+            {
+                m_JSFCode.SetValue(doc["code"].GetInt());
+            }
+            else
+            {
+                m_JSFCode.SetValue(status);
+            }
 
-			if(doc.HasMember("error") && doc["error"].IsString())
-			{
-				m_JSFMessage.SetValue(doc["error"].GetString());
-			}
-			else//没有按格式返回错误，就将返回的全部字符串保存起来
-			{
-				m_JSFMessage.SetValue(strJson);
-			}
+            if(doc.HasMember("error") && doc["error"].IsString())
+            {
+                m_JSFMessage.SetValue(doc["error"].GetString());
+            }
+            else//没有按格式返回错误，就将返回的全部字符串保存起来
+            {
+                m_JSFMessage.SetValue(strJson);
+            }
 
-			dwRet = ERR_RESPONSE_RETURNED_ERROR_STATE;
-		}
+            dwRet = ERR_RESPONSE_RETURNED_ERROR_STATE;
+        }
 
-		//no need
-		//IsValid()
+        //no need
+        //IsValid()
 
-		return dwRet;
-	}
+        return dwRet;
+    }
 
     virtual bool IsValid(std::string& strErrMsg) const
-	{
-		CHECK_REQUEST_FIELD(m_JSFCode, strErrMsg);
-		CHECK_REQUEST_FIELD(m_JSFMessage, strErrMsg);
+    {
+        CHECK_REQUEST_FIELD(m_JSFCode, strErrMsg);
+        CHECK_REQUEST_FIELD(m_JSFMessage, strErrMsg);
 
-		return true;
+        return true;
     }
 };
 
@@ -305,16 +310,24 @@ namespace json2cpp{
         jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \\
     }
 
-#define FROMJSON_RESPONSE_FIELD_INT(doc, field) \\
-    if(doc.HasMember(field.GetName().c_str()) && doc[field.GetName().c_str()].IsInt()) \\
+#define FROMJSON_RESPONSE_FIELD_NUMBER(values, field) \\
+    if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsNumber()) \\
     { \\
-        field.SetValue(doc[field.GetName().c_str()].GetInt()); \\
+        field.SetValue(values[field.GetName().c_str()].GetInt()); \\
     }
 
-#define FROMJSON_RESPONSE_FIELD_STRING(doc, field) \\
-    if(doc.HasMember(field.GetName().c_str()) && doc[field.GetName().c_str()].IsString()) \\
+#define FROMJSON_RESPONSE_FIELD_STRING(values, field) \\
+    if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsString()) \\
     { \\
-        field.SetValue(doc[field.GetName().c_str()].GetString()); \\
+        field.SetValue(values[field.GetName().c_str()].GetString()); \\
+    }
+
+#define FROMJSON_RESPONSE_FIELD_OBJECT(values, field) \\
+    if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsObject()) \\
+    { \\
+        const rapidjson::Value& val = values[field.GetName().c_str()]; \\
+        field.GetValue().FromJson(val); \\
+        field.SetValue(field.GetValue()); \\
     }
 
 #define JSONVALUE_TOSTRING(json, str) \\
@@ -333,6 +346,7 @@ CLASS_TOJSON_HEADER = '''	void ToJson(rapidjson::Value& root, rapidjson::Documen
 
 CLASS_TOJSON_FOOTER = '''
     }
+
 '''
 
 TOJSON_HEADER = '''     virtual uint32_t ToJson(std::string& strJson, std::string& strErrMsg) const
@@ -377,6 +391,15 @@ INIT_HEADER = '''   virtual void Init()
 INIT_FOOTER = '''   }
 '''
 
+CLASS_FROMJSON_HEADER = '''    FromJson(const rapidjson::Value& values)
+    {
+'''
+
+CLASS_FROMJSON_FOOTER = '''
+    }
+
+'''
+
 FROMJSON_HEADER = '''   virtual uint32_t FromJson(const std::string& strJson, int status)
     {
         uint32_t dwRet = ERR_OK;
@@ -397,6 +420,7 @@ FROMJSON_HEADER = '''   virtual uint32_t FromJson(const std::string& strJson, in
         }
         else
         {
+            const rapidjson::Value& values = doc;
 '''
 
 FROMJSON_FOOTER = '''
@@ -416,55 +440,108 @@ FROMJSON_FOOTER = '''
 ######################################## classes definition ####################################
 request_iter_marcos = {"": ""}
 request_iter_marcos_file = {"": ""}
+response_iter_marcos = {"": ""}
+response_iter_marcos_file = {"": ""}
+
 
 def construct_request_iter_marco(vec_type):
-    print "construct_request_iter_marco-->" + vec_type
+    # print "construct_request_iter_marco-->" + vec_type
     normal_type = ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]
-    common_str_head = "\tif(field.IsValueSet()) \\\n \
-                       \t{ \\\n \
-                       \t\trapidjson::Value value(rapidjson::kArrayType); \\\n"
-    common_str_foot = "\t\tjsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \\\n \
-                       \t}\n\n"
+    common_str_head = "\tif(field.IsValueSet()) \\\n" \
+                      "\t{ \\\n" \
+                      "\t\trapidjson::Value value(rapidjson::kArrayType); \\\n"
+    common_str_foot = "\t\tjsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \\\n" \
+                      "\t}\n\n"
 
     if vec_type in normal_type:    # Normal Type (Numbers)
-        print "Normal"
+        # print "Normal"
         request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
                 "_ARRAY(field, jsonObject, allocator) \\\n" + \
                 common_str_head + \
-                "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n \
-                \t\t\tit != field.GetValue().end(); \\\n \
-                \t\t\tit++) \\\n \
-                \t\t{ \\\n \
-                \t\t\tvalue.PushBack(*it, allocator); \\\n \
-                \t\t} \\\n" + \
+                "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n" \
+                "\t\t\tit != field.GetValue().end(); \\\n" \
+                "\t\t\tit++) \\\n" \
+                "\t\t{ \\\n" \
+                "\t\t\tvalue.PushBack(*it, allocator); \\\n" \
+                "\t\t} \\\n" + \
                 common_str_foot
     elif vec_type == "string":
-        print "string"
+        # print "string"
         request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
                 "_ARRAY(field, jsonObject, allocator) \\\n" + \
                 common_str_head + \
-                "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n \
-                \t\t\tit != field.GetValue().end(); \\\n \
-                \t\t\tit++) \\\n \
-                \t\t{ \\\n \
-                \t\t\tvalue.PushBack(rapidjson::StringRef(it->c_str()), allocator); \\\n \
-                \t\t} \\\n" + \
+                "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n" \
+                "\t\t\tit != field.GetValue().end(); \\\n" \
+                "\t\t\tit++) \\\n" \
+                "\t\t{ \\\n" \
+                "\t\t\tvalue.PushBack(rapidjson::StringRef(it->c_str()), allocator); \\\n" \
+                "\t\t} \\\n" + \
                 common_str_foot
     else:
-        print "Object"
+        # print "Object"
         request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
                 "_ARRAY(field, jsonObject, allocator) \\\n" + \
                 common_str_head + \
-                "\t\tfor(std::vector<" + vec_type + '>::const_iterator it = field.GetValue().begin(); \\\n \
-                \t\t\tit != field.GetValue().end(); \\\n \
-                \t\t\tit++) \\\n \
-                \t\t{ \\\n \
-                \t\t\trapidjson::Value objectValue(rapidjson::kObjectType); \\\n \
-                \t\t\tit->ToJson(objectValue, allocator); \\\n \
-                \t\t\tvalue.PushBack(objectValue, allocator); \\\n \
-                \t\t} \\\n' + \
+                "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n" \
+                "\t\t\tit != field.GetValue().end(); \\\n" \
+                "\t\t\tit++) \\\n" \
+                "\t\t{ \\\n" \
+                "\t\t\trapidjson::Value objectValue(rapidjson::kObjectType); \\\n" \
+                "\t\t\tit->ToJson(objectValue, allocator); \\\n" \
+                "\t\t\tvalue.PushBack(objectValue, allocator); \\\n" \
+                "\t\t} \\\n" + \
                 common_str_foot
     request_iter_marcos[vec_type] = "TOJSON_REQUEST_FIELD_" + vec_type.upper() + "_ARRAY"
+
+
+def construct_response_iter_marco(vec_type):
+    print "construct_request_iter_marco-->" + vec_type
+    normal_type = ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]
+    common_str_head = "\tif(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()]." \
+                      "IsArray()) \\\n" \
+                      "\t{ \\\n"
+    iter_c_str_head = "\t\tconst rapidjson::Value& val = values[field.GetName().c_str()]; \\\n" \
+                      "\t\tfor (rapidjson::Value::ConstValueIterator itr = val.Begin(); itr != val.End(); ++itr) \\\n" \
+                      "\t\t{ \\\n"
+    iter_c_str_foot = "\t\t} \\\n"
+
+    common_str_foot = "\t\tfield.SetValue(vec); \\\n" \
+                      "\t}\n\n"
+
+    if vec_type in normal_type:    # Normal Type (Numbers)
+        # print "Normal"
+        response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
+                "_ARRAY(values, field) \\\n" + \
+                common_str_head + \
+                "\t\tvector<" + vec_type + "> vec; \\\n" + \
+                iter_c_str_head + \
+                "\t\t\tvec.push_back(itr->GetInt()); \\\n" + \
+                iter_c_str_foot + \
+                common_str_foot
+
+    elif vec_type == "string":
+        # print "string"
+        response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
+                "_ARRAY(values, field) \\\n" + \
+                common_str_head + \
+                "\t\tvector<" + vec_type + "> vec; \\\n" + \
+                iter_c_str_head + \
+                "\t\t\tvec.push_back(itr->GetString()); \\\n" + \
+                iter_c_str_foot + \
+                common_str_foot
+    else:
+        # print "Object"
+        response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
+                "_ARRAY(values, field) \\\n" + \
+                common_str_head + \
+                "\t\tvector<" + vec_type + "> vec; \\\n" + \
+                iter_c_str_head + \
+                "\t\t\t" + vec_type + " typeVar; \\\n" + \
+                "\t\t\ttypeVar.FromJson(*itr); \\\n" + \
+                "\t\t\tvec.push_back(typeVar); \\\n" + \
+                iter_c_str_foot + \
+                common_str_foot
+    response_iter_marcos[vec_type] = "FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + "_ARRAY"
 
 
 class Field:
@@ -498,20 +575,21 @@ class Field:
             return "Field<" + self.type + ">"
 
     def get_tojson_method(self):
-        print "get_tojson_method -->"
+        # print "get_tojson_method -->"
         normal_type = ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]
         if self.type in normal_type:
-            print "normal_type"
+            # print "normal_type"
             return "TOJSON_REQUEST_FIELD_INT"
         elif self.type == "string":
-            print "string"
+            # print "string"
             return "TOJSON_REQUEST_FIELD_STRING"
         elif "vector" in self.type:
-            print "vector"
+            # print "vector"
             vector_type = self.type
             vector_type = vector_type.strip("vector").strip("<").strip(">")
-            print vector_type
-            construct_request_iter_marco(vector_type)
+            # print vector_type
+            if vector_type not in request_iter_marcos:
+                construct_request_iter_marco(vector_type)
             # if vector_type in normal_type:
             #     return "TOJSON_REQUEST_FIELD_NUM_ARRAY"
             # elif vector_type == "string":
@@ -520,7 +598,7 @@ class Field:
             #     return "TOJSON_REQUEST_FIELD_OBJECT_ARRAY"
             return request_iter_marcos[vector_type]
         else:
-            print "object"
+            # print "object"
             return "TOJSON_REQUEST_FIELD_OBJECT"
 
     # def get_tojson_method(self):
@@ -536,15 +614,18 @@ class Field:
 
     def get_fromjson_method(self):
         if self.type in ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]:
-            return "FROMJSON_RESPONSE_FIELD_INT"
+            return "FROMJSON_RESPONSE_FIELD_NUMBER"
         elif self.type == "string":
             return "FROMJSON_RESPONSE_FIELD_STRING"
-        elif self.type in ["vector<int>", "vector<short>", "vector<string>"]:
-            print u"[警告]不支持的变量类型:" + self.type
-            return ""
+        elif "vector" in self.type:
+            vector_type = self.type
+            vector_type = vector_type.strip("vector").strip("<").strip(">")
+            # print vector_type
+            if vector_type not in response_iter_marcos:
+                construct_response_iter_marco(vector_type)
+            return response_iter_marcos[vector_type]
         else:
-            print u"[警告]不支持的变量类型:" + self.type
-            return ""
+            return "FROMJSON_RESPONSE_FIELD_OBJECT"
 
     def dump_declaration(self):
         str = ""
@@ -569,7 +650,7 @@ class Field:
     def dump_fromjson(self):
         str = ""
         if self.is_valid():
-            str = "\t\t\t" + self.get_fromjson_method() + "(doc, m_" + self.name + ");\n"
+            str = "\t\t\t" + self.get_fromjson_method() + "(values, m_" + self.name + ");\n"
         return str
 
     def dump_isvalid(self):
@@ -655,6 +736,16 @@ class Class(FieldCollector):
 
         return to_json_method
 
+    def dump_from_json(self):
+        str = ""
+        for field in self.fields:
+            str += field.dump_fromjson()
+        from_json_method = CLASS_FROMJSON_HEADER + "\n" \
+            + str \
+            + CLASS_FROMJSON_FOOTER
+
+        return from_json_method
+
     def dump(self):
         init_list = self.dump_initialize_list()
         init_list = list(init_list)
@@ -668,6 +759,7 @@ class Class(FieldCollector):
             + "\t{}\n\n" \
             + "\t~" + self.name + "(){}\n\n" \
             + self.dump_to_json() \
+            + self.dump_from_json() \
             + "};\n\n"
         return class_str
 
@@ -1032,8 +1124,10 @@ def generate_files(tokens, base_directory):
 
     generate_interface(base_directory, class_fields, interface)
     str_out = MACRO_H
-    for macros in request_iter_marcos_file:
-        str_out += request_iter_marcos_file[macros]
+    for req_macros in request_iter_marcos_file:
+        str_out += request_iter_marcos_file[req_macros]
+    for res_macros in response_iter_marcos_file:
+        str_out += response_iter_marcos_file[res_macros]
     str_out += "\n#endif	/* JSON2CPP_MACRO_H */\n"
     # base files
     generate_base(str_out, base_directory)
