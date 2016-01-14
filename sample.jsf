@@ -27,6 +27,8 @@
 示例如下：
 */
 
+namespace jsf::test
+
 @description="地址结构体"
 class Address{	//自定义结构体
 	@jsonname="provinceNo", description="地址编号"
