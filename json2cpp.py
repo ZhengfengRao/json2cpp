@@ -391,7 +391,7 @@ INIT_HEADER = '''   virtual void Init()
 INIT_FOOTER = '''   }
 '''
 
-CLASS_FROMJSON_HEADER = '''    FromJson(const rapidjson::Value& values)
+CLASS_FROMJSON_HEADER = '''    void FromJson(const rapidjson::Value& values)
     {
 '''
 

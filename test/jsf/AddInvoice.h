@@ -32,7 +32,7 @@ public:
 
     }
 
-    FromJson(const rapidjson::Value& values)
+    void FromJson(const rapidjson::Value& values)
     {
 
 			FROMJSON_RESPONSE_FIELD_NUMBER(values, m_provinceNo);
@@ -94,7 +94,7 @@ public:
 
     }
 
-    FromJson(const rapidjson::Value& values)
+    void FromJson(const rapidjson::Value& values)
     {
 
 			FROMJSON_RESPONSE_FIELD_STRING(values, m_invoiceType);
