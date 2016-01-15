@@ -17,13 +17,13 @@ Copyright (C) 2016, ICSON company, ZhengFeng Rao, NASaCJ. All rights reserved.
 [python-link]:https://www.python.org/
 [setuptools-link]:https://pypi.python.org/pypi/setuptools
 
-JSON is a kind of **Object** notation. When programmers deal with the json strings by C++ json APIs (eg, [RapidJSON]([rapidjson-link]), [jsoncpp]([jsoncpp-link])) they have to write codes for parsing each different Class, which there may be a lot of similar repeated API calling codes.
+JSON is a kind of **Object** notation. When programmers deal with the json strings by C++ json APIs (eg, [RapidJSON][rapidjson-link], [jsoncpp][jsoncpp-link]) they have to write codes for parsing each different Class, which there may be a lot of similar repeated API calling codes.
 So json2cpp can help programmer to auto-generate the C++ codes for transferring form JSON to C++ and conversely.
-json2cpp is a script tool written in python language. It uses [pyparsing]([pyparsing-link]) to parse a Modeling file to C++ files and [RapidJSON]([rapidjson-link]) for C++ to parse the JSON.
+json2cpp is a script tool written in python language. It uses [pyparsing][pyparsing-link] to parse a Modeling file to C++ files and [RapidJSON][rapidjson-link] for C++ to parse the JSON.
 
 ##Installation before use
-* json2cpp depends on Python and pyparsing, so make sure that [Python]([python-link]) has been installed on your System
-* For installing  [pyparsing]([pyparsing-link]), use "[easy_install]([setuptools-link])" to install it through command line:
+* json2cpp depends on Python and pyparsing, so make sure that [Python][python-link] has been installed on your System
+* For installing  [pyparsing][pyparsing-link], use "[easy_install][setuptools-link]" to install it through command line:
 ``` shell
 user@localhost $ sudo easy_install pyparsing
 ```
