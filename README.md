@@ -6,7 +6,7 @@ Copyright (C) 2016, ICSON company, ZhengFeng Rao, NASaCJ. All rights reserved.
 
 ## Build Status
 |Platfrom| [Linux][lin-link] |
- :------:| :---------------: |
+|:------:| :---------------: |
 |Status  |[![Build Status](https://travis-ci.org/nasacj/json2cpp.svg?branch=master)](https://travis-ci.org/nasacj/json2cpp)|
 [lin-link]: https://travis-ci.org/nasacj/json2cpp
 
