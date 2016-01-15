@@ -12,7 +12,7 @@ import time
 from pyparsing import *
 
 rapidjson_path = "rapidjson"
-current_time = time.strftime('%Y-%m-%d, %H:%M',time.localtime(time.time()))
+current_time = time.strftime('%Y-%m-%d, %H:%M', time.localtime(time.time()))
 
 ######################################## file       template    ####################################
 
@@ -1117,9 +1117,23 @@ def generate_interface(base_directory, namspace_str, class_fields, interface):
         for nameS in namspace_str:
             ns_str = ns_str + "namespace " + nameS + " { "
             file_footer += "} "
-        ns_str += "\n"
+        ns_str += "\n\n"
+        file_footer += "\n"
     # print ns_str
-    header = FILE_HEADER + ns_str + class_str + interface.dump + file_footer
+    # Construct Header #define
+    file_head = FILE_HEADER
+    file_head = "/*\n" + \
+                " * File:   " + interface.name + ".h\n" + \
+                " * Author: json2cpp\n" + \
+                " *\n" + \
+                " * Created on " + current_time + "\n" + \
+                " */\n\n" + \
+                "#ifndef JSON2CPP_" + interface.name.upper() + "_H\n" + \
+                "#define JSON2CPP_" + interface.name.upper() + "_H\n\n" + \
+        file_head
+    file_footer += "#endif	/* JSON2CPP_" + interface.name.upper() + "_H */\n"
+
+    header = file_head + ns_str + class_str + interface.dump + file_footer
 
     header_h = open(base_directory + os.sep + interface.name + ".h", "w")
     header_h.write(header)
