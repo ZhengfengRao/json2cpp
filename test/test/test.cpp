@@ -2,6 +2,7 @@
 #include "AddInvoice.h"
 #include <fstream>
 
+using namespace jsf::test;
 
 void test_AddInvoiceRequest()
 {
