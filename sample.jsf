@@ -4,13 +4,13 @@
 	Interface {interface_name}{
 	Request{
 		(@description="balaa....")
-		@jdname={jsf_filed_name}
+		@jsonname={jsf_filed_name}
 		[field_type] {field_name} (optional); 
 	};
 	
 	Response{
 		(@description="balaa....")
-		@jdname={jsf_filed_name}
+		@jsonname={jsf_filed_name}
 		[field_type] {field_name} (optional); 
 	};
 };
@@ -18,7 +18,7 @@
 其中：
 1. {interface_name}表示接口名，可以是任何有效的变量名
 2. (@description="balaa....")表示注释，最终写入到生成的头文件中。()表示可选
-3.@jdname={jsf_filed_name}对应的京东jsf字段名字
+3.@jsonname={jsf_filed_name}对应的京东jsf字段名字
 4.[field_type] 字段类型，可选值为[int short string vector<int> vector<short> vector<string>]
 5.{field_name}字段名，可以是任何有效的变量名
 6.(optional)表示该字段是可选的
@@ -27,53 +27,109 @@
 示例如下：
 */
 
-(@description="申请开票接口  balabala....")			//接口说明
+namespace jsf::test
+
+@description="地址结构体"
+class Address{	//自定义结构体
+	@jsonname="provinceNo", description="地址编号"
+    int provinceNo;	
+	
+	@jsonname="provinceStr", description="省"
+    string province;	
+	
+	@jsonname="city", description="市"
+    string city;	
+	
+	@jsonname="town", description="区县镇"
+    string town;
+	
+	@jsonname="address", description="详细地址"
+    string address;
+	
+	//@jsonname="optionalAddress", description="备选发票地址"
+    //vector<Address> optionalAddress;
+};
+
+@description="发票结构体"
+class InvoiceTicket{
+	@jsonname="invoiceType", description="发票类型"
+    string invoiceType;
+	
+	@jsonname="invoiceCode", description="发票代码"
+    string invoiceCode;
+	
+	@jsonname="invoiceNo", description="发票号码"
+    string invoiceNo;
+	
+	@jsonname="amount", description="开票金额"
+    string amount;
+	
+	@jsonname="invoiceTime", description="开票时间"
+    string invoiceTime;
+	
+	@jsonname="state", description="状态"
+    string state;
+	
+	@jsonname="bussinessId", description="订单号"
+    string bussinessId;
+	
+	@jsonname="operatorCode", description="开票人"
+    string operatorCode;
+	
+	@jsonname="operatorName", description="开票人名称"
+    string operatorName;
+	
+	@jsonname="invoiceAddress", description="发票地址"
+    Address address;
+	
+	@jsonname="optionalAddress", description="备选发票地址"
+    vector<Address> optionalAddress;
+};
+
+
+@description="申请开票接口  balabala...."			//接口说明
 Interface AddInvoice{
 	Request{
-		(@description="来源")									//字段说明
-		@jdname="sourceId"
+		@jsonname="sourceId", description="来源"
 		int source;
 
-		(@description="开票机构")
-		@jdname="orgId"
+		@jsonname="orgId", description="开票机构"
 		int organizationId;
 
-		(@description="开票类型")
-		@jdname="ivcType"
+		@jsonname="ivcType",description="开票类型"
 		int invoiceType;
 
-		(@description="申请单号")
-		@jdname="reqNo"
+		@jsonname="reqNo", description="申请单号"
 		string requestNo;
 
-		(@description="付款方识别号")
-		@jdname="payerNo"
+		@jsonname="payerNo", description="付款方识别号"
 		string payNo;
 
-		(@description="收款方识别号")
-		@jdname="receiverNo"
-		string receiverNo optional;								//可选字段
+		@jsonname="receiverNo", description="收款方识别号", optional="true" //可选字段
+		string receiverNo ;
 
-		(@description="订单列表")
-		@jdname="businessIds"
+		@jsonname="businessIds", description="订单列表"
 		vector<string> bussinessIds;
+		
+		@jsonname="invoiceTicket", description="发票"
+		InvoiceTicket invoiceTicket;
 	};
 
 	Response{
-		(@description="业务返回代码")
-		@jdname="code"
+		@jsonname="code", description="业务返回代码"
 		string code;
 
-		(@description="业务返回信息")
-		@jdname="msg"
+		@jsonname="msg", description="业务返回信息"
 		string message;
 
-		(@description="申请单号")
-		@jdname="reqNo"
+		@jsonname="reqNo", description="申请单号"
 		string requestNo;
 
-//		(@description="订单列表")
-//		@jdname="businessIds"
-//		vector<string> bussinessIds optional;				//可选字段
+		@jsonname="businessIds", description="订单列表", optional="true"	//可选字段
+		vector<string> bussinessIds ;
+		
+		@jsonname="invoiceTicket", description="发票"
+		InvoiceTicket invoiceTicket;
 	};
 };
+

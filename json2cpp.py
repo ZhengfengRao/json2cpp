@@ -37,6 +37,8 @@ BASE_H = '''/*
 #include <string>
 #include <vector>
 
+using namespace std;
+
 /*使用rapidjson做序列化，保证序列化后的json参数有序*/
 #include "rapidjson/rapidjson.h"
 #include "rapidjson/document.h"
@@ -72,7 +74,7 @@ protected:
 public:
     Field(const std::string& strName, bool bNeed = false)
     :m_tValue() //T类型初始化
-	,m_strName(strName)
+    ,m_strName(strName)
     ,m_bNeed(bNeed)
     ,m_bSet(false)
     {
@@ -89,6 +91,11 @@ public:
     }
 
     const T& GetValue() const
+    {
+        return m_tValue;
+    }
+
+    T& GetValue()
     {
         return m_tValue;
     }
@@ -133,7 +140,7 @@ public:
 
     virtual void Clear()
     {
-        this->m_tValue.clear();
+        T().swap(this->m_tValue);
         this->m_bSet = false;
 
         //无法编译通过，因为是继承模板类
@@ -154,86 +161,86 @@ public:
 class IResponse
 {
 public:
-    Field<int> m_JSFCode;                                		//JSF协议错误代码             Y
+    Field<int> m_JSFCode;                                //JSF协议错误代码             Y
     Field<std::string> m_JSFMessage;                     //JSF协议错误信息
 
 public:
     IResponse()
-		:m_JSFCode("code", true)
-		,m_JSFMessage("error")
-	{
-		Init();
-	}
+        :m_JSFCode("code", true)
+        ,m_JSFMessage("error")
+    {
+        Init();
+    }
 
     virtual ~IResponse()
-	{
-	}
+    {
+    }
 
     virtual void Init()
-	{
-		m_JSFCode.Clear();
-		m_JSFMessage.Clear();
-	}
+    {
+        m_JSFCode.Clear();
+        m_JSFMessage.Clear();
+    }
 
     virtual uint32_t FromJson(const std::string& strJson, int status)
-	{
-		uint32_t dwRet = ERR_OK;
+    {
+        uint32_t dwRet = ERR_OK;
 
-		Init();
-		if(status == 200)//http:ok
-		{
-			m_JSFCode.SetValue(0);
-			m_JSFMessage.SetValue("");
-			return dwRet;
-		}
+        Init();
+        if(status == 200)//http:ok
+        {
+            m_JSFCode.SetValue(0);
+            m_JSFMessage.SetValue("");
+            return dwRet;
+        }
 
-		//http:error
-		//可能的http状态：http://jpcloud.jd.com/pages/viewpage.action?pageId=14357054
-		//报错时返回的字符串格式通常为：{"code":500,"error":"错误描述"}
-		//但也可能是其他格式或非JSON字符串(webserver报错比如404)，所以需要做容错处理
-		rapidjson::Document doc;
-		if(doc.Parse<0>(strJson.c_str()).HasParseError() || !doc.IsObject())
-		{
-			dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
-			m_JSFCode.SetValue(dwRet);
-			m_JSFMessage.SetValue("string can not be parsed as json object! str:" + strJson);
-		}
-		else
-		{
-			if(doc.HasMember("code") && doc["code"].IsInt())
-			{
-				m_JSFCode.SetValue(doc["code"].GetInt());
-			}
-			else
-			{
-				m_JSFCode.SetValue(status);
-			}
+        //http:error
+        //可能的http状态：http://jpcloud.jd.com/pages/viewpage.action?pageId=14357054
+        //报错时返回的字符串格式通常为：{"code":500,"error":"错误描述"}
+        //但也可能是其他格式或非JSON字符串(webserver报错比如404)，所以需要做容错处理
+        rapidjson::Document doc;
+        if(doc.Parse<0>(strJson.c_str()).HasParseError() || !doc.IsObject())
+        {
+            dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
+            m_JSFCode.SetValue(dwRet);
+            m_JSFMessage.SetValue("string can not be parsed as json object! str:" + strJson);
+        }
+        else
+        {
+            if(doc.HasMember("code") && doc["code"].IsInt())
+            {
+                m_JSFCode.SetValue(doc["code"].GetInt());
+            }
+            else
+            {
+                m_JSFCode.SetValue(status);
+            }
 
-			if(doc.HasMember("error") && doc["error"].IsString())
-			{
-				m_JSFMessage.SetValue(doc["error"].GetString());
-			}
-			else//没有按格式返回错误，就将返回的全部字符串保存起来
-			{
-				m_JSFMessage.SetValue(strJson);
-			}
+            if(doc.HasMember("error") && doc["error"].IsString())
+            {
+                m_JSFMessage.SetValue(doc["error"].GetString());
+            }
+            else//没有按格式返回错误，就将返回的全部字符串保存起来
+            {
+                m_JSFMessage.SetValue(strJson);
+            }
 
-			dwRet = ERR_RESPONSE_RETURNED_ERROR_STATE;
-		}
+            dwRet = ERR_RESPONSE_RETURNED_ERROR_STATE;
+        }
 
-		//no need
-		//IsValid()
+        //no need
+        //IsValid()
 
-		return dwRet;
-	}
+        return dwRet;
+    }
 
     virtual bool IsValid(std::string& strErrMsg) const
-	{
-		CHECK_REQUEST_FIELD(m_JSFCode, strErrMsg);
-		CHECK_REQUEST_FIELD(m_JSFMessage, strErrMsg);
+    {
+        CHECK_REQUEST_FIELD(m_JSFCode, strErrMsg);
+        CHECK_REQUEST_FIELD(m_JSFMessage, strErrMsg);
 
-		return true;
-	}
+        return true;
+    }
 };
 
 }
@@ -282,7 +289,15 @@ namespace json2cpp{
         jsonObject.SetString(rapidjson::StringRef(field.GetValue().c_str())); \\
     }
 
-#define TOJSON_REQUEST_FIELD_ARRAY(field, jsonObject, allocator) \\
+#define TOJSON_REQUEST_FIELD_OBJECT(field, jsonObject, allocator) \\
+    if(field.IsValueSet()) \\
+    { \\
+        rapidjson::Value objectValue(rapidjson::kObjectType); \\
+        field.GetValue().ToJson(objectValue, allocator); \\
+        jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), objectValue, allocator); \\
+    }
+
+#define TOJSON_REQUEST_FIELD_STR_ARRAY(field, jsonObject, allocator) \\
     if(field.IsValueSet()) \\
     { \\
         rapidjson::Value value(rapidjson::kArrayType); \\
@@ -295,16 +310,24 @@ namespace json2cpp{
         jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \\
     }
 
-#define FROMJSON_RESPONSE_FIELD_INT(doc, field) \\
-    if(doc.HasMember(field.GetName().c_str()) && doc[field.GetName().c_str()].IsInt()) \\
+#define FROMJSON_RESPONSE_FIELD_NUMBER(values, field) \\
+    if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsNumber()) \\
     { \\
-        field.SetValue(doc[field.GetName().c_str()].GetInt()); \\
+        field.SetValue(values[field.GetName().c_str()].GetInt()); \\
     }
 
-#define FROMJSON_RESPONSE_FIELD_STRING(doc, field) \\
-    if(doc.HasMember(field.GetName().c_str()) && doc[field.GetName().c_str()].IsString()) \\
+#define FROMJSON_RESPONSE_FIELD_STRING(values, field) \\
+    if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsString()) \\
     { \\
-        field.SetValue(doc[field.GetName().c_str()].GetString()); \\
+        field.SetValue(values[field.GetName().c_str()].GetString()); \\
+    }
+
+#define FROMJSON_RESPONSE_FIELD_OBJECT(values, field) \\
+    if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsObject()) \\
+    { \\
+        const rapidjson::Value& val = values[field.GetName().c_str()]; \\
+        field.GetValue().FromJson(val); \\
+        field.SetValue(field.GetValue()); \\
     }
 
 #define JSONVALUE_TOSTRING(json, str) \\
@@ -314,7 +337,16 @@ namespace json2cpp{
     str= buffer.GetString();
 
 }
-#endif	/* JSON2CPP_MACRO_H */
+
+'''
+
+CLASS_TOJSON_HEADER = '''	void ToJson(rapidjson::Value& root, rapidjson::Document::AllocatorType& allocator) const
+    {
+'''
+
+CLASS_TOJSON_FOOTER = '''
+    }
+
 '''
 
 TOJSON_HEADER = '''     virtual uint32_t ToJson(std::string& strJson, std::string& strErrMsg) const
@@ -359,6 +391,15 @@ INIT_HEADER = '''   virtual void Init()
 INIT_FOOTER = '''   }
 '''
 
+CLASS_FROMJSON_HEADER = '''    void FromJson(const rapidjson::Value& values)
+    {
+'''
+
+CLASS_FROMJSON_FOOTER = '''
+    }
+
+'''
+
 FROMJSON_HEADER = '''   virtual uint32_t FromJson(const std::string& strJson, int status)
     {
         uint32_t dwRet = ERR_OK;
@@ -379,6 +420,7 @@ FROMJSON_HEADER = '''   virtual uint32_t FromJson(const std::string& strJson, in
         }
         else
         {
+            const rapidjson::Value& values = doc;
 '''
 
 FROMJSON_FOOTER = '''
@@ -394,18 +436,131 @@ FROMJSON_FOOTER = '''
         return dwRet;
     }
 '''
+
 ######################################## classes definition ####################################
+request_iter_marcos = {"": ""}
+request_iter_marcos_file = {"": ""}
+response_iter_marcos = {"": ""}
+response_iter_marcos_file = {"": ""}
+
+
+def construct_request_iter_marco(vec_type):
+    # print "construct_request_iter_marco-->" + vec_type
+    normal_type = ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]
+    common_str_head = "\tif(field.IsValueSet()) \\\n" \
+                      "\t{ \\\n" \
+                      "\t\trapidjson::Value value(rapidjson::kArrayType); \\\n"
+    common_str_foot = "\t\tjsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \\\n" \
+                      "\t}\n\n"
+
+    if vec_type in normal_type:    # Normal Type (Numbers)
+        # print "Normal"
+        request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
+                "_ARRAY(field, jsonObject, allocator) \\\n" + \
+                common_str_head + \
+                "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n" \
+                "\t\t\tit != field.GetValue().end(); \\\n" \
+                "\t\t\tit++) \\\n" \
+                "\t\t{ \\\n" \
+                "\t\t\tvalue.PushBack(*it, allocator); \\\n" \
+                "\t\t} \\\n" + \
+                common_str_foot
+    elif vec_type == "string":
+        # print "string"
+        request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
+                "_ARRAY(field, jsonObject, allocator) \\\n" + \
+                common_str_head + \
+                "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n" \
+                "\t\t\tit != field.GetValue().end(); \\\n" \
+                "\t\t\tit++) \\\n" \
+                "\t\t{ \\\n" \
+                "\t\t\tvalue.PushBack(rapidjson::StringRef(it->c_str()), allocator); \\\n" \
+                "\t\t} \\\n" + \
+                common_str_foot
+    else:
+        # print "Object"
+        request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
+                "_ARRAY(field, jsonObject, allocator) \\\n" + \
+                common_str_head + \
+                "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n" \
+                "\t\t\tit != field.GetValue().end(); \\\n" \
+                "\t\t\tit++) \\\n" \
+                "\t\t{ \\\n" \
+                "\t\t\trapidjson::Value objectValue(rapidjson::kObjectType); \\\n" \
+                "\t\t\tit->ToJson(objectValue, allocator); \\\n" \
+                "\t\t\tvalue.PushBack(objectValue, allocator); \\\n" \
+                "\t\t} \\\n" + \
+                common_str_foot
+    request_iter_marcos[vec_type] = "TOJSON_REQUEST_FIELD_" + vec_type.upper() + "_ARRAY"
+
+
+def construct_response_iter_marco(vec_type):
+    # print "construct_request_iter_marco-->" + vec_type
+    normal_type = ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]
+    common_str_head = "\tif(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()]." \
+                      "IsArray()) \\\n" \
+                      "\t{ \\\n"
+    iter_c_str_head = "\t\tconst rapidjson::Value& val = values[field.GetName().c_str()]; \\\n" \
+                      "\t\tfor (rapidjson::Value::ConstValueIterator itr = val.Begin(); itr != val.End(); ++itr) \\\n" \
+                      "\t\t{ \\\n"
+    iter_c_str_foot = "\t\t} \\\n"
+
+    common_str_foot = "\t\tfield.SetValue(vec); \\\n" \
+                      "\t}\n\n"
+
+    if vec_type in normal_type:    # Normal Type (Numbers)
+        # print "Normal"
+        response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
+                "_ARRAY(values, field) \\\n" + \
+                common_str_head + \
+                "\t\tvector<" + vec_type + "> vec; \\\n" + \
+                iter_c_str_head + \
+                "\t\t\tvec.push_back(itr->GetInt()); \\\n" + \
+                iter_c_str_foot + \
+                common_str_foot
+
+    elif vec_type == "string":
+        # print "string"
+        response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
+                "_ARRAY(values, field) \\\n" + \
+                common_str_head + \
+                "\t\tvector<" + vec_type + "> vec; \\\n" + \
+                iter_c_str_head + \
+                "\t\t\tvec.push_back(itr->GetString()); \\\n" + \
+                iter_c_str_foot + \
+                common_str_foot
+    else:
+        # print "Object"
+        response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
+                "_ARRAY(values, field) \\\n" + \
+                common_str_head + \
+                "\t\tvector<" + vec_type + "> vec; \\\n" + \
+                iter_c_str_head + \
+                "\t\t\t" + vec_type + " typeVar; \\\n" + \
+                "\t\t\ttypeVar.FromJson(*itr); \\\n" + \
+                "\t\t\tvec.push_back(typeVar); \\\n" + \
+                iter_c_str_foot + \
+                common_str_foot
+    response_iter_marcos[vec_type] = "FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + "_ARRAY"
+
+
 class Field:
     def __init__(self):
         self.description = ""
         self.type = ""
         self.name = ""
-        self.jdname = ""
+        self.jsonname = ""
         self.optional = 0
 
     def is_valid(self):
-        # return self.type != "" and self.name != "" and self.jdname != ""
+        # return self.type != "" and self.name != "" and self.jsonname != ""
         return self.type != "" and self.name != ""
+
+    def get_field_type2(self):
+        if "vector" in self.type:
+            return "VectorField<" + self.type + " >"
+        else:
+            return "Field<" + self.type + ">"
 
     def get_field_type(self):
         if self.type == "vector<int>":
@@ -420,40 +575,70 @@ class Field:
             return "Field<" + self.type + ">"
 
     def get_tojson_method(self):
-        if self.type in ["short", "int"]:
+        # print "get_tojson_method -->"
+        normal_type = ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]
+        if self.type in normal_type:
+            # print "normal_type"
             return "TOJSON_REQUEST_FIELD_INT"
         elif self.type == "string":
+            # print "string"
             return "TOJSON_REQUEST_FIELD_STRING"
-        elif self.type in ["vector<int>", "vector<short>", "vector<string>"]:
-            return "TOJSON_REQUEST_FIELD_ARRAY"
+        elif "vector" in self.type:
+            # print "vector"
+            vector_type = self.type
+            vector_type = vector_type.strip("vector").strip("<").strip(">")
+            # print vector_type
+            if vector_type not in request_iter_marcos:
+                construct_request_iter_marco(vector_type)
+            # if vector_type in normal_type:
+            #     return "TOJSON_REQUEST_FIELD_NUM_ARRAY"
+            # elif vector_type == "string":
+            #     return "TOJSON_REQUEST_FIELD_STR_ARRAY"
+            # else:
+            #     return "TOJSON_REQUEST_FIELD_OBJECT_ARRAY"
+            return request_iter_marcos[vector_type]
         else:
-            print "[警告]不支持的变量类型:" + self.type
-            return ""
+            # print "object"
+            return "TOJSON_REQUEST_FIELD_OBJECT"
+
+    # def get_tojson_method(self):
+    #     if self.type in ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]:
+    #         return "TOJSON_REQUEST_FIELD_INT"
+    #     elif self.type == "string":
+    #         return "TOJSON_REQUEST_FIELD_STRING"
+    #     elif self.type in ["vector<int>", "vector<short>", "vector<string>"]:
+    #         return "TOJSON_REQUEST_FIELD_ARRAY"
+    #     else:
+    #         print "[警告]不支持的变量类型:" + self.type
+    #         return ""
 
     def get_fromjson_method(self):
-        if self.type in ["short", "int"]:
-            return "FROMJSON_RESPONSE_FIELD_INT"
+        if self.type in ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]:
+            return "FROMJSON_RESPONSE_FIELD_NUMBER"
         elif self.type == "string":
             return "FROMJSON_RESPONSE_FIELD_STRING"
-        elif self.type in ["vector<int>", "vector<short>", "vector<string>"]:
-            print u"[警告]不支持的变量类型:" + self.type
-            return ""
+        elif "vector" in self.type:
+            vector_type = self.type
+            vector_type = vector_type.strip("vector").strip("<").strip(">")
+            # print vector_type
+            if vector_type not in response_iter_marcos:
+                construct_response_iter_marco(vector_type)
+            return response_iter_marcos[vector_type]
         else:
-            print u"[警告]不支持的变量类型:" + self.type
-            return ""
+            return "FROMJSON_RESPONSE_FIELD_OBJECT"
 
     def dump_declaration(self):
         str = ""
         if self.is_valid():
-            str = "\t" + self.get_field_type() + "\t\t\tm_" + self.name + ";"
+            str = "\t" + self.get_field_type2() + "\t\t\tm_" + self.name + ";"
             if self.description != "":
-                str += "\t\t\t//" + self.description.decode("gbk")
+                str += "\t\t\t\t//" + self.description.decode("gbk")
         return str
 
     def dump_initialize_list(self):
         str = ""
         if self.is_valid():
-            str += "\t\t,m_" + self.name + "(\"" + self.jdname + "\", " + ("true" if self.optional == 0 else "false") + ")\n"
+            str += "\t\t,m_" + self.name + "(\"" + self.jsonname + "\", " + ("true" if self.optional == 0 else "false") + ")\n"
         return str
 
     def dump_tojson(self):
@@ -465,7 +650,7 @@ class Field:
     def dump_fromjson(self):
         str = ""
         if self.is_valid():
-            str = "\t\t\t" + self.get_fromjson_method() + "(doc, m_" + self.name + ");\n"
+            str = "\t\t\t" + self.get_fromjson_method() + "(values, m_" + self.name + ");\n"
         return str
 
     def dump_isvalid(self):
@@ -480,6 +665,7 @@ class Field:
             str = "\t\tm_" + self.name + ".Clear();\n"
         return str
 
+
 class FieldCollector:
     def __init__(self):
         self.fields = []
@@ -490,12 +676,12 @@ class FieldCollector:
         for field in self.fields:
             if field.is_valid() == 0:
                 return 0
-        return 1;
+        return 1
 
     def dump_declaration(self):
         str = "public:\n"
         for field in self.fields:
-            str += field.dump_declaration();
+            str += field.dump_declaration()
             str += "\n"
         return str
 
@@ -511,12 +697,14 @@ class FieldCollector:
             str += field.dump_isvalid()
         return str
 
+
 class Request(FieldCollector):
     def dump_tojson(self):
         str = ""
         for field in self.fields:
             str += field.dump_tojson()
         return str
+
 
 class Response(FieldCollector):
     def dump_fromjson(self):
@@ -531,6 +719,51 @@ class Response(FieldCollector):
             str += field.dump_init()
         return str
 
+
+class Class(FieldCollector):
+    def __init__(self):
+        FieldCollector.__init__(self)
+        self.description = ""
+        self.name = ""
+
+    def dump_to_json(self):
+        str = ""
+        for field in self.fields:
+            str += field.dump_tojson()
+        to_json_method = CLASS_TOJSON_HEADER + "\n" \
+            + str \
+            + CLASS_TOJSON_FOOTER
+
+        return to_json_method
+
+    def dump_from_json(self):
+        str = ""
+        for field in self.fields:
+            str += field.dump_fromjson()
+        from_json_method = CLASS_FROMJSON_HEADER + "\n" \
+            + str \
+            + CLASS_FROMJSON_FOOTER
+
+        return from_json_method
+
+    def dump(self):
+        init_list = self.dump_initialize_list()
+        init_list = list(init_list)
+        init_list[2] = " "
+        init_list = "".join(init_list)
+        class_str = "class " + self.name + "\n{\n" \
+            + self.dump_declaration() \
+            + "\npublic:\n" \
+            + "\t" + self.name + "() : \n" \
+            + init_list \
+            + "\t{}\n\n" \
+            + "\t~" + self.name + "(){}\n\n" \
+            + self.dump_to_json() \
+            + self.dump_from_json() \
+            + "};\n\n"
+        return class_str
+
+
 class Interface:
     def __init__(self):
         self.description = ""
@@ -539,10 +772,11 @@ class Interface:
         self.response = 0
 
     def is_valid(self):
-        return  self.name != ""\
+        return self.name != ""\
             and isinstance(self.request, Request) and self.request.is_valid() \
             and isinstance(self.response, Response) and self.response.is_valid()
 
+    @property
     def dump(self):
         request_str = "class " + self.name + "Request: public IRequest\n{\n" \
             + self.request.dump_declaration() \
@@ -554,7 +788,7 @@ class Interface:
             + "\t~" + self.name + "Request()\n\t{}\n\n" \
             + TOJSON_HEADER + "\n"\
             + self.request.dump_tojson()\
-            + TOJSON_FOOTER+ "\n"\
+            + TOJSON_FOOTER + "\n"\
             + ISVALID_HEADER \
             + self.request.dump_isvalid() \
             + ISVALID_FOOTER \
@@ -568,9 +802,9 @@ class Interface:
             + self.response.dump_initialize_list() \
             + "\t{}\n\n" \
             + "\t~" + self.name + "Response()\n\t{}\n\n" \
-            + INIT_HEADER+ "\n"\
+            + INIT_HEADER + "\n" \
             + self.response.dump_init() \
-            + INIT_FOOTER +"\n"\
+            + INIT_FOOTER + "\n" \
             + FROMJSON_HEADER \
             + self.response.dump_fromjson() \
             + FROMJSON_FOOTER + "\n"\
@@ -584,6 +818,10 @@ class Interface:
         #source file
 
 
+def key_value_field(keyName):
+    equal = Suppress("=")
+    return Group(keyName + equal + quotedString)
+
 
 ######################################## parse  tokens ####################################
 def load_grammar():
@@ -594,20 +832,31 @@ def load_grammar():
     rbracket = Suppress(")")
     semicolon = Suppress(";")
     at = Suppress("@")
+    comma = Suppress(",")
     equal = Suppress("=")
+    nspace = Suppress("::")
     word = Word(alphanums + "_/")
     interface_key = "Interface"
+    class_key = "class"
+    namespace_key = "namespace"
     interface_name = word
     request_key = "Request"
     response_key = "Response"
+    jsonname_key = "jsonname"
     description_key = "description"
     optional_key = "optional"
     field_name = word
 
-    field_type = oneOf("short int string vector<short> vector<int> vector<string>")
-    description = Group(lbracket + at + description_key + equal + quotedString + rbracket)
-    jdname = Group(at + word + equal + quotedString)
-    field = Group(Optional(description) +  jdname + field_type + field_name + Optional(optional_key) + semicolon)
+    #field_type = oneOf("short int string vector<short> vector<int> vector<string>")
+    namespace_field = Group(namespace_key + word + ZeroOrMore(nspace + word))
+    field_type = Word(alphanums + "_/<>")
+    description = Group(at + description_key + equal + quotedString)
+    jsonname = Group(at + jsonname_key + equal + quotedString)
+    keyValueField = Group(word + equal + quotedString)
+    jsonField = Group(jsonname + Optional(comma + key_value_field(description_key)) \
+                      + Optional(comma + key_value_field(optional_key)))
+    # field = Group(Optional(description) + jsonname + field_type + field_name + Optional(optional_key) + semicolon)
+    field = Group(jsonField + field_type + field_name + semicolon)
     request = Group(request_key + lbrace + OneOrMore(field) + rbrace + semicolon)
     response = Group(response_key + lbrace + OneOrMore(field) + rbrace + semicolon)
     interface = Group(Optional(description) \
@@ -616,42 +865,95 @@ def load_grammar():
         + response\
         + rbrace + semicolon)
 
-    return OneOrMore(interface).ignore(cppStyleComment)
+    classGram = Group(Optional(description) \
+        + class_key + interface_name + lbrace \
+        + OneOrMore(field) \
+        + rbrace + semicolon)
+
+    grammar = ZeroOrMore(namespace_field) + ZeroOrMore(classGram) + OneOrMore(interface)
+    return OneOrMore(grammar).ignore(cppStyleComment)
+
+
+def parse_namspace(token, base_dir):
+    namespace_str = ""
+    base_dir_str = base_dir
+    for i in range(len(token)):
+        if i == 0:
+            pass
+        elif i == 1:
+            namespace_str = token[1]
+            base_dir_str = base_dir_str + os.sep + token[1]
+        else:
+            namespace_str += "::" + token[i]
+            base_dir_str = base_dir_str + os.sep + token[i]
+    return namespace_str, base_dir_str
+
+
+def parse_class(class_token):
+    classField = Class()
+    class_token_len = len(class_token)
+
+    # class description
+    description_dis = 0
+    if type(class_token[0]) != list:
+        if class_token[0] != "class":
+            print "[ERROR] Parsing Class token failed: class key word not found!"
+        description_dis = 1
+    else:
+        classField.description = parse_description(class_token[0])
+
+    # class name
+    class_name = class_token[description_dis + 2]
+    if type(class_name) != str:
+        print u"[ERROR]class name <" + class_name + u">should be str type, but now: " + type(class_name)
+        return
+    classField.name = class_name
+
+    # class fields
+    for i in range(class_token_len):
+        if i <= description_dis + 2:
+            # class keyword & class name
+            pass
+        else:
+            field = parse_field(class_token[i])
+            if isinstance(field, Field) and field.is_valid():
+                classField.fields.append(field)
+    return classField
+
 
 def parse_interface(interface_token):
     if type(interface_token) != list:
-        print u"[错误]不支持的interface_token类型：" + type(interface_token)
+        print u"[ERROR] Unsupported interface_token type:<" + type(interface_token) + u">"
         print interface_token
 
     interface = Interface()
     interface_token_len = len(interface_token)
 
-    #interface description
+    # interface description
     description_dis = 0
-    if interface_token_len == 5:    #有注释
+    if 5 == interface_token_len:    # Have Comments here
         interface.description = parse_description(interface_token[0])
         description_dis = 1
     elif interface_token_len != 4:
-        print u"[错误]expected interface_token_len is [4-5], actually is :" + str(interface_token_len)
+        print u"[ERROR] Expected interface_token_len is [4-5], actually is: " + str(interface_token_len)
         print interface_token
         return
 
-    #interface keyword
-    #interface_token[description_dis]
+    # interface keyword
+    # interface_token[description_dis]
 
-    #interface name
+    # interface name
     interface_name = interface_token[description_dis + 1]
     if type(interface_name) != str:
-        print u"[错误]错误的接口名类型." + type(interface_name)
-        print interface_name
+        print u"[ERROR]Interface name <" + interface_name + u">should be str type, but now: " + type(interface_name)
         return
     interface.name = interface_name
 
-    #interface request
+    # interface request
     interface_request = interface_token[description_dis + 2]
     interface.request = parse_request(interface_request)
 
-    #interface response
+    # interface response
     interface_response = interface_token[description_dis + 3]
     if type(interface_response) != list:
         print u"[错误]错误的response类型." + type(interface_response)
@@ -661,28 +963,50 @@ def parse_interface(interface_token):
 
     return interface
 
+
 def parse_description(description_tokens):
     if type(description_tokens) == list and len(description_tokens) == 2:
         if type(description_tokens[1] == str) and description_tokens[1] != "":
-            return description_tokens[1]
+            return description_tokens[1].strip("\"")
     return ""
 
-def parse_request(request_tokens, object_type = "request"):
+
+def parse_key_value_field(keyvalue_tokens):
+    if type(keyvalue_tokens) == list and len(keyvalue_tokens) == 2:
+        if type(keyvalue_tokens[1] == str) and keyvalue_tokens[1] != "":
+            return keyvalue_tokens[1].strip("\"")
+    return ""
+
+
+def parse_to_key_value_field_arrays(tokens):
+    key_value = {"jsonname": ""}
+    for m in range(len(tokens)):
+        keyName = tokens[m][0];
+        if keyName == "jsonname":
+            key_value["jsonname"] = parse_key_value_field(tokens[m])
+        elif keyName == "description":
+            key_value["description"] = parse_key_value_field(tokens[m])
+        elif keyName == "optional":
+            key_value["optional"] = parse_key_value_field(tokens[m])
+    return key_value
+
+
+def parse_request(request_tokens, object_type="request"):
     if type(request_tokens) != list:
-        print u"[错误]错误的request/response类型." + str(type(request_tokens))
+        print u"[ERROR] Wrong request/response type define: " + str(type(request_tokens))
         print request_tokens
         return
 
     request_token_len = len(request_tokens)
-    if request_token_len  <2:
-        print u"[错误]request/response缺少有效字段.期望字段数[>=2],实际字段数:" + str(request_token_len)
+    if request_token_len < 2:
+        print u"[ERROR] Unexpected end field of request/response, expected:[>=2], actual:" + str(request_token_len)
         print request_tokens
         return
 
     object = Request() if (object_type == "request") else Response()
     for i in range(request_token_len):
-        if i == 0 :
-            #request/response keyword
+        if i == 0:
+            # request/response keyword
             pass
         else:
             field = parse_field(request_tokens[i])
@@ -690,151 +1014,185 @@ def parse_request(request_tokens, object_type = "request"):
                 object.fields.append(field)
     return object
 
+
 def parse_response(response_tokens):
     return parse_request(response_tokens, "response")
 
+
 def parse_field(field_tokens):
     if type(field_tokens) != list:
-        print u"[错误]错误的field类型." + str(type(field_tokens))
+        print u"[ERROR] Wrong field type, field_tokens is not list: " + str(type(field_tokens))
         print field_tokens
         return
 
     field_token_len = len(field_tokens)
-    if field_token_len > 5 or field_token_len < 3:
-        print u"[错误]expected field_token_len is [3-5], actually is :" + str(field_token_len)
+    if field_token_len != 3:
+        print u"[ERROR]expected field_token_len should be 3, actually is: " + str(field_token_len)
         print field_tokens
         return
 
     field = Field()
 
-    #field description
-    description_dis = 0
-    if type(field_tokens[0]) == list: #注释
-        field_description_token = parse_description(field_tokens[0])
-        if field_description_token == "":
-            print u"[警告]无效的注释，已忽略."
-            print field_tokens[0]
-        field.description = field_description_token
-        description_dis = 1
-
-    #field jdname
-    field_jdname_token = field_tokens[description_dis]
-    if type(field_jdname_token) == list: #注释
-        jdname = parse_description(field_jdname_token)
-        if jdname == "":
-            print u"[警告]无效的注释，已忽略."
-            print field_jdname_token
-            return
-        field.jdname = jdname.strip("\"")
-    else:
-        print u"[错误]无效的field jdname类型." + str(type(field_jdname_token))
-        print field_jdname_token
+    # jsonname field
+    jsonname_field_tokens = field_tokens[0]
+    if type(jsonname_field_tokens) != list:
+        print u"[ERROR] Wrong jsonname_field_tokens type: " + str(type(jsonname_field_tokens))
+        print jsonname_field_tokens
         return
 
-    #field type
-    field_type_token = field_tokens[description_dis + 1]
+    key_values = parse_to_key_value_field_arrays(jsonname_field_tokens)
+    if key_values["jsonname"] == "":
+        print u"[ERROR] jsonname field is NULL!"
+        print jsonname_field_tokens
+        return
+    field.jsonname = key_values["jsonname"]
+
+    if "description" in key_values and key_values["description"] != "":
+        field.description = key_values["description"]
+
+    if "optional" in key_values and key_values["optional"] == "true":
+        field.optional = 1
+
+    # field type
+    field_type_token = field_tokens[1]
     if type(field_type_token) != str:
-        print u"[错误]错误的field type类型." + str(type(field_type_token))
+        print u"[ERROR] Wrong field type, NOT str: " + str(type(field_type_token))
         print field_type_token
         return
     field.type = field_type_token
 
-    #field name
-    field_name_token = field_tokens[description_dis + 2]
+    # field name
+    field_name_token = field_tokens[2]
     if type(field_name_token) != str:
-        print u"[错误]错误的field_name类型." + str(type(field_name_token))
+        print u"[ERROR] Wrong field_name type: " + str(type(field_name_token))
         print field_name_token
         return
     field.name = field_name_token
 
-    #field optional
-    if field_token_len == (description_dis + 3) + 1:
-        field_optional_token = field_tokens[description_dis + 3]
-        if type(field_optional_token) == str and field_optional_token == "optional":
-            field.optional = 1
-        else:
-            print u"[警告]无效的字段修饰符:" + field_optional_token + ". 已忽略"
     return field
 
 
-
-######################################## generate c++ files ####################################
-def generate_base(base_directory):
+'''
+################################ generate c++ files ####################################
+'''
+def generate_base(macros, base_directory):
     macro_h = open(base_directory + os.sep + "macro.h", "w")
-    macro_h.write(MACRO_H)
+    macro_h.write(macros)
     macro_h.close()
 
     base_h = open(base_directory + os.sep + "base.h", "w")
     base_h.write(BASE_H)
     base_h.close()
 
-    #rapidjson library
-    if os.path.exists(rapidjson_path) == False:
-        print u"[错误]rapidjson库路径不存在." + os.path.abspath(rapidjson_path)
+    # rapidjson library
+    if not os.path.exists(rapidjson_path):
+        print u"[ERROR] rapidjson库路径不存在." + os.path.abspath(rapidjson_path)
         exit(-1)
-    if os.path.isdir(rapidjson_path) == False:
-        print u"[错误]rapidjson库路径不是目录." + os.path.abspath(rapidjson_path)
+    if not os.path.isdir(rapidjson_path):
+        print u"[ERROR] rapidjson库路径不是目录." + os.path.abspath(rapidjson_path)
         exit(-1)
 
     try:
         rapidjson_directory = base_directory + os.sep + "rapidjson"
-        if os.path.exists(rapidjson_directory) == True:
+        if os.path.exists(rapidjson_directory):
             shutil.rmtree(rapidjson_directory)
         shutil.copytree(os.path.abspath(rapidjson_path), rapidjson_directory)
     except Exception, e:
         print e
 
+
 def generate_test(base_directory):
     pass
 
-def generate_interface(base_directory, interface):
-    header =  FILE_HEADER + interface.dump() + FILE_FOOTER
+
+def generate_interface(base_directory, namspace_str, class_fields, interface):
+    class_str = ""
+    for classField in class_fields:
+        class_str += classField.dump()
+
+    header = FILE_HEADER + class_str + interface.dump + FILE_FOOTER
 
     header_h = open(base_directory + os.sep + interface.name + ".h", "w")
     header_h.write(header)
     header_h.close()
 
 
-def generate_files(tokens, base_directory):
+def generate_files(tokens, base_dir):
     if type(tokens) != list or len(tokens) < 1:
         print u"[错误]无效的tokens. type:" + type(tokens) + ", len:" + len(tokens)
         print tokens
         return
 
-    #base files
-    generate_base(base_directory)
+    print "--- tokens ---"
+    print tokens
+    print "-----------------"
+    class_fields = []
+    namespace_str = ""
+    for token in tokens:
+        print token
+        if (type(token[0]) == list and token[1] == "class") or token[0] == "class":
+            print "Parse class..."
+            class_field = parse_class(token)
+            class_fields.append(class_field)
+        elif (type(token[0]) == list and token[1] == "Interface") or token[0] == "Interface":
+            print "Parse Interface..."
+            interface = parse_interface(token)
+        elif token[0] == "namespace":
+            print "Parse  namespace..."
+            namespace = parse_namspace(token, base_dir)
+        else:
+            print "[ERROR] Parsing token failed! No class or Interface key word find!"
+            return
 
-    for interface_token in tokens:
-        interface = parse_interface(interface_token)
-        generate_interface(base_directory, interface)
-
-
-
-########################################      main           ####################################
-def usage():
-    print "json2cpp {grammar_file} {generated_directory}"
-
-def parse_param(argv):
-    grammar_file = argv[1]
-    base_directory = argv[2]
-
-    if os.path.exists(grammar_file) == False:
-        print u"[错误]文件不存在:" + os.path.abspath(grammar_file)
-        exit(-1)
-
-        if os.path.isfile(grammar_file) == False:
-            print u"[错误]" + os.path.abspath(grammar_file) + u"不是有效的文件."
-            exit(-1)
-
-    base_directory = base_directory + os.sep + "jsf"
-    if os.path.exists(base_directory) == False:
+    base_directory = ""
+    if namespace != "":
+        base_directory = namespace[1]
+    # Create dir by namespace
+    if not os.path.exists(base_directory):
         try:
             os.makedirs(base_directory)
         except OSError, why:
             print u"[错误]创建目标文件夹." + os.path.abspath(base_directory) + u"失败."
             exit(-1)
+    generate_interface(base_directory, namespace[0], class_fields, interface)
+    str_out = MACRO_H
+    for req_macros in request_iter_marcos_file:
+        str_out += request_iter_marcos_file[req_macros]
+    for res_macros in response_iter_marcos_file:
+        str_out += response_iter_marcos_file[res_macros]
+    str_out += "\n#endif	/* JSON2CPP_MACRO_H */\n"
+    # base files
+    generate_base(str_out, base_directory)
 
-    return os.path.abspath(grammar_file), os.path.abspath(base_directory)
+
+'''
+##################################      main           ####################################
+'''
+def usage():
+    print "json2cpp {grammar_file} {generated_directory}"
+
+
+def parse_param(argv):
+    grammar_file = argv[1]
+    base_directory = argv[2]
+
+    if not os.path.exists(grammar_file):
+        print u"[错误]文件不存在:" + os.path.abspath(grammar_file)
+        exit(-1)
+
+        if not os.path.isfile(grammar_file):
+            print u"[错误]" + os.path.abspath(grammar_file) + u"不是有效的文件."
+            exit(-1)
+
+    # base_directory = base_directory + os.sep + "jsf"
+    # if not os.path.exists(base_directory):
+    #     try:
+    #         os.makedirs(base_directory)
+    #     except OSError, why:
+    #         print u"[错误]创建目标文件夹." + os.path.abspath(base_directory) + u"失败."
+    #         exit(-1)
+
+    return os.path.abspath(grammar_file)
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
@@ -843,5 +1201,5 @@ if __name__ == "__main__":
 
     file_path = parse_param(sys.argv)
     grammar = load_grammar()
-    tokens = grammar.parseFile(file_path[0]).asList()
-    generate_files(tokens, file_path[1])
+    tokens = grammar.parseFile(file_path).asList()
+    generate_files(tokens, sys.argv[2])
