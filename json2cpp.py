@@ -7,10 +7,12 @@ sys.setdefaultencoding('utf8')
 
 import os
 import shutil
+import time
 
 from pyparsing import *
 
 rapidjson_path = "rapidjson"
+current_time = time.strftime('%Y-%m-%d, %H:%M',time.localtime(time.time()))
 
 ######################################## file       template    ####################################
 
@@ -27,9 +29,9 @@ FILE_FOOTER = '''
 
 BASE_H = '''/*
  * File:   base.h
- * Author: raozf
+ * Author: json2cpp
  *
- * Created on 2015年5月20日, 下午4:26
+ * Created on ''' + current_time + '''
  */
 
 #ifndef JSON2CPP_BASE_H
@@ -250,9 +252,9 @@ public:
 
 MACRO_H = '''/*
  * File:   macro.h
- * Author: raozf
+ * Author: json2cpp
  *
- * Created on 2015年5月20日, 下午4:26
+ * Created on ''' + current_time + '''
  */
 
 #ifndef JSON2CPP_MACRO_H
@@ -1116,7 +1118,7 @@ def generate_interface(base_directory, namspace_str, class_fields, interface):
             ns_str = ns_str + "namespace " + nameS + " { "
             file_footer += "} "
         ns_str += "\n"
-    print ns_str
+    # print ns_str
     header = FILE_HEADER + ns_str + class_str + interface.dump + file_footer
 
     header_h = open(base_directory + os.sep + interface.name + ".h", "w")
@@ -1130,22 +1132,22 @@ def generate_files(tokens, base_dir):
         print tokens
         return
 
-    print "--- tokens ---"
-    print tokens
-    print "-----------------"
+    # print "--- tokens ---"
+    # print tokens
+    # print "-----------------"
     class_fields = []
     namespace = ""
     for token in tokens:
-        print token
+        # print token
         if (type(token[0]) == list and token[1] == "class") or token[0] == "class":
-            print "Parse class..."
+            # print "Parse class..."
             class_field = parse_class(token)
             class_fields.append(class_field)
         elif (type(token[0]) == list and token[1] == "Interface") or token[0] == "Interface":
-            print "Parse Interface..."
+            # print "Parse Interface..."
             interface = parse_interface(token)
         elif token[0] == "namespace":
-            print "Parse  namespace..."
+            # print "Parse  namespace..."
             namespace = parse_namespace(token, base_dir)
         else:
             print "[ERROR] Parsing token failed! No class or Interface key word find!"
@@ -1155,9 +1157,11 @@ def generate_files(tokens, base_dir):
     namespace_str = ""
     if namespace != "":
         namespace_str = namespace[0]
-        print namespace_str
+        # print namespace_str
         base_directory = namespace[1]
-        print base_directory
+        # print base_directory
+    print "Generating code in dir ---> \"" + base_directory + "\""
+
     # Create dir by namespace
     if not os.path.exists(base_directory):
         try:
@@ -1165,6 +1169,7 @@ def generate_files(tokens, base_dir):
         except OSError, why:
             print u"[错误]创建目标文件夹." + os.path.abspath(base_directory) + u"失败."
             exit(-1)
+
     generate_interface(base_directory, namespace_str, class_fields, interface)
     str_out = MACRO_H
     for req_macros in request_iter_marcos_file:
@@ -1214,3 +1219,4 @@ if __name__ == "__main__":
     grammar = load_grammar()
     tokens = grammar.parseFile(file_path).asList()
     generate_files(tokens, sys.argv[2])
+    print current_time
