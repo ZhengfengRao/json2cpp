@@ -1,15 +1,17 @@
 #include <iostream>
-#include "../jsf/AddInvoice.h"
+#include "AddInvoice.h"
 #include <fstream>
+
+using namespace jsf::test;
 
 void test_AddInvoiceRequest()
 {
 	std::cout << "--- test_AddInvoiceRequest [START]---" << std::endl;
-	json2cpp::AddInvoiceRequest request;
-	json2cpp::Address address;
-	json2cpp::Address address1;
-	json2cpp::Address address2;
-	json2cpp::InvoiceTicket invoTic;
+	AddInvoiceRequest request;
+	Address address;
+	Address address1;
+	Address address2;
+	InvoiceTicket invoTic;
 	
 	address.m_provinceNo.SetValue(10001);
 	address.m_province.SetValue("上海市");
@@ -39,7 +41,7 @@ void test_AddInvoiceRequest()
 	invoTic.m_operatorCode.SetValue("某人");				//开票人
 	invoTic.m_operatorName.SetValue("某某人");				//开票人名称
 	invoTic.m_address.SetValue(address);				//发票地址
-	vector<json2cpp::Address> v_addr;
+	vector<Address> v_addr;
 	v_addr.push_back(address1);
 	v_addr.push_back(address2);
 	invoTic.m_optionalAddress.SetValue(v_addr);
@@ -79,7 +81,7 @@ void test_AddInvoiceResponse()
 	
 	//cout << str << endl;
 	
-    json2cpp::AddInvoiceResponse response;
+    AddInvoiceResponse response;
     uint32_t ret = response.FromJson(str, status);
     if(ret != json2cpp::ERR_OK)
     {

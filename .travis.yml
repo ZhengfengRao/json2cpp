@@ -1,0 +1,34 @@
+language: cpp
+
+compiler:
+  - gcc-4.8
+
+#sudo: false
+
+#addons:
+#  apt:
+#    sources:
+#    - ubuntu-toolchain-r-test
+#    packages:
+#    - gcc-4.8
+#    - g++-4.8
+#    - libboost-dev
+before_install:
+  # pyparsing
+  - sudo easy_install pyparsing
+install:
+  
+before_script:
+
+script:
+  - python json2cpp.py sample.jsf test
+  - cd test/test
+  - make
+  - ./test  
+
+notifications:
+  email: false
+  
+os:
+  - linux
+  # - osx
