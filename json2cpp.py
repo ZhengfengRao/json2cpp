@@ -347,8 +347,7 @@ CLASS_TOJSON_HEADER = '''	void ToJson(rapidjson::Value& root, rapidjson::Documen
     {
 '''
 
-CLASS_TOJSON_FOOTER = '''
-    }
+CLASS_TOJSON_FOOTER = '''\t}
 
 '''
 
@@ -398,8 +397,7 @@ CLASS_FROMJSON_HEADER = '''    void FromJson(const rapidjson::Value& values)
     {
 '''
 
-CLASS_FROMJSON_FOOTER = '''
-    }
+CLASS_FROMJSON_FOOTER = '''\t}
 
 '''
 
@@ -553,67 +551,34 @@ class Field:
         self.type = ""
         self.name = ""
         self.jsonname = ""
+        self.default = ""
+        self.default_isset = 0
         self.optional = 0
 
     def is_valid(self):
         # return self.type != "" and self.name != "" and self.jsonname != ""
         return self.type != "" and self.name != ""
 
-    def get_field_type2(self):
+    def get_field_type(self):
         if "vector" in self.type:
             return "VectorField<" + self.type + " >"
         else:
             return "Field<" + self.type + ">"
 
-    def get_field_type(self):
-        if self.type == "vector<int>":
-            return "VectorField<std::vector<int> >"
-        elif self.type == "vector<short>":
-            return "VectorField<std::vector<short> >"
-        elif self.type == "vector<string>":
-            return "VectorField<std::vector<std::string> >"
-        elif self.type == "string":
-            return "Field<std::string>"
-        else:
-            return "Field<" + self.type + ">"
-
     def get_tojson_method(self):
-        # print "get_tojson_method -->"
         normal_type = ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]
         if self.type in normal_type:
-            # print "normal_type"
             return "TOJSON_REQUEST_FIELD_INT"
         elif self.type == "string":
-            # print "string"
             return "TOJSON_REQUEST_FIELD_STRING"
         elif "vector" in self.type:
-            # print "vector"
             vector_type = self.type
             vector_type = vector_type.strip("vector").strip("<").strip(">")
-            # print vector_type
             if vector_type not in request_iter_marcos:
                 construct_request_iter_marco(vector_type)
-            # if vector_type in normal_type:
-            #     return "TOJSON_REQUEST_FIELD_NUM_ARRAY"
-            # elif vector_type == "string":
-            #     return "TOJSON_REQUEST_FIELD_STR_ARRAY"
-            # else:
-            #     return "TOJSON_REQUEST_FIELD_OBJECT_ARRAY"
             return request_iter_marcos[vector_type]
         else:
-            # print "object"
             return "TOJSON_REQUEST_FIELD_OBJECT"
-
-    # def get_tojson_method(self):
-    #     if self.type in ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]:
-    #         return "TOJSON_REQUEST_FIELD_INT"
-    #     elif self.type == "string":
-    #         return "TOJSON_REQUEST_FIELD_STRING"
-    #     elif self.type in ["vector<int>", "vector<short>", "vector<string>"]:
-    #         return "TOJSON_REQUEST_FIELD_ARRAY"
-    #     else:
-    #         print "[警告]不支持的变量类型:" + self.type
-    #         return ""
 
     def get_fromjson_method(self):
         if self.type in ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]:
@@ -623,7 +588,6 @@ class Field:
         elif "vector" in self.type:
             vector_type = self.type
             vector_type = vector_type.strip("vector").strip("<").strip(">")
-            # print vector_type
             if vector_type not in response_iter_marcos:
                 construct_response_iter_marco(vector_type)
             return response_iter_marcos[vector_type]
@@ -633,7 +597,7 @@ class Field:
     def dump_declaration(self):
         str = ""
         if self.is_valid():
-            str = "\t" + self.get_field_type2() + "\t\t\tm_" + self.name + ";"
+            str = "\t" + self.get_field_type() + "\t\t\tm_" + self.name + ";"
             if self.description != "":
                 str += "\t\t\t\t//" + self.description.decode("gbk")
         return str
@@ -700,6 +664,13 @@ class FieldCollector:
             str += field.dump_isvalid()
         return str
 
+    def dump_constructor(self):
+        str = u""
+        for field in self.fields:
+            isquoted = "\"" if field.type == "string" else ""
+            if field.default_isset == 1:
+                str = str + "\t\tm_" + field.name + ".SetValue(" + isquoted + field.default.decode("gbk").encode("utf-8") + isquoted + ");\n"
+        return str
 
 class Request(FieldCollector):
     def dump_tojson(self):
@@ -720,6 +691,9 @@ class Response(FieldCollector):
         str = ""
         for field in self.fields:
             str += field.dump_init()
+
+        str += "\n"
+        str += self.dump_constructor()
         return str
 
 
@@ -733,7 +707,7 @@ class Class(FieldCollector):
         str = ""
         for field in self.fields:
             str += field.dump_tojson()
-        to_json_method = CLASS_TOJSON_HEADER + "\n" \
+        to_json_method = CLASS_TOJSON_HEADER \
             + str \
             + CLASS_TOJSON_FOOTER
 
@@ -743,7 +717,7 @@ class Class(FieldCollector):
         str = ""
         for field in self.fields:
             str += field.dump_fromjson()
-        from_json_method = CLASS_FROMJSON_HEADER + "\n" \
+        from_json_method = CLASS_FROMJSON_HEADER \
             + str \
             + CLASS_FROMJSON_FOOTER
 
@@ -759,7 +733,9 @@ class Class(FieldCollector):
             + "\npublic:\n" \
             + "\t" + self.name + "() : \n" \
             + init_list \
-            + "\t{}\n\n" \
+            + "\t{\n" \
+            + self.dump_constructor() \
+            + "\t}\n\n" \
             + "\t~" + self.name + "(){}\n\n" \
             + self.dump_to_json() \
             + self.dump_from_json() \
@@ -787,7 +763,9 @@ class Interface:
             + "\t" + self.name + "Request()\n" \
             + "\t\t:IRequest()\n" \
             + self.request.dump_initialize_list() \
-            + "\t{}\n\n" \
+            + "\t{\n" \
+            + self.request.dump_constructor() \
+            + "\t}\n\n" \
             + "\t~" + self.name + "Request()\n\t{}\n\n" \
             + TOJSON_HEADER + "\n"\
             + self.request.dump_tojson()\
@@ -803,7 +781,9 @@ class Interface:
             + "\t" + self.name + "Response()\n" \
             + "\t\t:IResponse()\n" \
             + self.response.dump_initialize_list() \
-            + "\t{}\n\n" \
+            + "\t{\n" \
+            + self.response.dump_constructor() \
+            + "\t}\n\n" \
             + "\t~" + self.name + "Response()\n\t{}\n\n" \
             + INIT_HEADER + "\n" \
             + self.response.dump_init() \
@@ -828,52 +808,46 @@ def key_value_field(keyName):
 
 ######################################## parse  tokens ####################################
 def load_grammar():
-    quot = Suppress("\"")
     lbrace = Suppress("{")
     rbrace = Suppress("}")
-    lbracket = Suppress("(")
-    rbracket = Suppress(")")
     semicolon = Suppress(";")
     at = Suppress("@")
     comma = Suppress(",")
     equal = Suppress("=")
     nspace = Suppress("::")
-    word = Word(alphanums + "_/")
+    keyword = Word(alphanums + "_/")
     interface_key = "Interface"
     class_key = "class"
     namespace_key = "namespace"
-    interface_name = word
     request_key = "Request"
     response_key = "Response"
     jsonname_key = "jsonname"
     description_key = "description"
     optional_key = "optional"
-    field_name = word
+    default_key = "default"
 
-    #field_type = oneOf("short int string vector<short> vector<int> vector<string>")
-    namespace_field = Group(namespace_key + word + ZeroOrMore(nspace + word))
     field_type = Word(alphanums + "_/<>")
+    namespace = Group(namespace_key + keyword + ZeroOrMore(nspace + keyword))
     description = Group(at + description_key + equal + quotedString)
     jsonname = Group(at + jsonname_key + equal + quotedString)
-    keyValueField = Group(word + equal + quotedString)
-    jsonField = Group(jsonname + Optional(comma + key_value_field(description_key)) \
-                      + Optional(comma + key_value_field(optional_key)))
-    # field = Group(Optional(description) + jsonname + field_type + field_name + Optional(optional_key) + semicolon)
-    field = Group(jsonField + field_type + field_name + semicolon)
+    comment = Group(jsonname + Optional(comma + key_value_field(description_key)) \
+                      + Optional(comma + key_value_field(optional_key)) \
+                      + Optional(comma + key_value_field(default_key)))
+    field = Group(comment + field_type + keyword + semicolon)
     request = Group(request_key + lbrace + OneOrMore(field) + rbrace + semicolon)
     response = Group(response_key + lbrace + OneOrMore(field) + rbrace + semicolon)
     interface = Group(Optional(description) \
-        + interface_key + interface_name + lbrace \
+        + interface_key + keyword + lbrace \
         + request \
         + response\
         + rbrace + semicolon)
 
     classGram = Group(Optional(description) \
-        + class_key + interface_name + lbrace \
+        + class_key + keyword + lbrace \
         + OneOrMore(field) \
         + rbrace + semicolon)
 
-    grammar = ZeroOrMore(namespace_field) + ZeroOrMore(classGram) + OneOrMore(interface)
+    grammar = ZeroOrMore(namespace) + ZeroOrMore(classGram) + OneOrMore(interface)
     return OneOrMore(grammar).ignore(cppStyleComment)
 
 
@@ -897,7 +871,7 @@ def parse_class(class_token):
     description_dis = 0
     if type(class_token[0]) != list:
         if class_token[0] != "class":
-            print "[ERROR] Parsing Class token failed: class key word not found!"
+            print "[error] Parsing Class token failed: class key word not found!"
         description_dis = 1
     else:
         classField.description = parse_description(class_token[0])
@@ -905,7 +879,7 @@ def parse_class(class_token):
     # class name
     class_name = class_token[description_dis + 2]
     if type(class_name) != str:
-        print u"[ERROR]class name <" + class_name + u">should be str type, but now: " + type(class_name)
+        print u"[error]class name <" + class_name + u">should be str type, but now: " + type(class_name)
         return
     classField.name = class_name
 
@@ -923,7 +897,7 @@ def parse_class(class_token):
 
 def parse_interface(interface_token):
     if type(interface_token) != list:
-        print u"[ERROR] Unsupported interface_token type:<" + type(interface_token) + u">"
+        print u"[error] Unsupported interface_token type:<" + type(interface_token) + u">"
         print interface_token
 
     interface = Interface()
@@ -935,7 +909,7 @@ def parse_interface(interface_token):
         interface.description = parse_description(interface_token[0])
         description_dis = 1
     elif interface_token_len != 4:
-        print u"[ERROR] Expected interface_token_len is [4-5], actually is: " + str(interface_token_len)
+        print u"[error] Expected interface_token_len is [4-5], actually is: " + str(interface_token_len)
         print interface_token
         return
 
@@ -945,7 +919,7 @@ def parse_interface(interface_token):
     # interface name
     interface_name = interface_token[description_dis + 1]
     if type(interface_name) != str:
-        print u"[ERROR]Interface name <" + interface_name + u">should be str type, but now: " + type(interface_name)
+        print u"[error]Interface name <" + interface_name + u">should be str type, but now: " + type(interface_name)
         return
     interface.name = interface_name
 
@@ -988,18 +962,22 @@ def parse_to_key_value_field_arrays(tokens):
             key_value["description"] = parse_key_value_field(tokens[m])
         elif keyName == "optional":
             key_value["optional"] = parse_key_value_field(tokens[m])
+        elif keyName == "default":
+            key_value["default"] = parse_key_value_field(tokens[m])
+        else:
+            print u"[warn] Invalid comment filed:" + keyName +", ignored!"
     return key_value
 
 
 def parse_request(request_tokens, object_type="request"):
     if type(request_tokens) != list:
-        print u"[ERROR] Wrong request/response type define: " + str(type(request_tokens))
+        print u"[error] Wrong request/response type define: " + str(type(request_tokens))
         print request_tokens
         return
 
     request_token_len = len(request_tokens)
     if request_token_len < 2:
-        print u"[ERROR] Unexpected end field of request/response, expected:[>=2], actual:" + str(request_token_len)
+        print u"[error] Unexpected end field of request/response, expected:[>=2], actual:" + str(request_token_len)
         print request_tokens
         return
 
@@ -1021,28 +999,28 @@ def parse_response(response_tokens):
 
 def parse_field(field_tokens):
     if type(field_tokens) != list:
-        print u"[ERROR] Wrong field type, field_tokens is not list: " + str(type(field_tokens))
+        print u"[error] Wrong field type, field_tokens is not list: " + str(type(field_tokens))
         print field_tokens
         return
 
     field_token_len = len(field_tokens)
     if field_token_len != 3:
-        print u"[ERROR]expected field_token_len should be 3, actually is: " + str(field_token_len)
+        print u"[error]expected field_token_len should be 3, actually is: " + str(field_token_len)
         print field_tokens
         return
 
     field = Field()
 
-    # jsonname field
+    # comment
     jsonname_field_tokens = field_tokens[0]
     if type(jsonname_field_tokens) != list:
-        print u"[ERROR] Wrong jsonname_field_tokens type: " + str(type(jsonname_field_tokens))
+        print u"[error] Wrong jsonname_field_tokens type: " + str(type(jsonname_field_tokens))
         print jsonname_field_tokens
         return
 
     key_values = parse_to_key_value_field_arrays(jsonname_field_tokens)
     if key_values["jsonname"] == "":
-        print u"[ERROR] jsonname field is NULL!"
+        print u"[error] jsonname field is NULL!"
         print jsonname_field_tokens
         return
     field.jsonname = key_values["jsonname"]
@@ -1053,10 +1031,15 @@ def parse_field(field_tokens):
     if "optional" in key_values and key_values["optional"] == "true":
         field.optional = 1
 
+    # if "default" in key_values and key_values["default"] != "":
+    if "default" in key_values :
+        field.default = key_values["default"]
+        field.default_isset = 1
+
     # field type
     field_type_token = field_tokens[1]
     if type(field_type_token) != str:
-        print u"[ERROR] Wrong field type, NOT str: " + str(type(field_type_token))
+        print u"[error] Wrong field type, NOT str: " + str(type(field_type_token))
         print field_type_token
         return
     field.type = field_type_token
@@ -1064,7 +1047,7 @@ def parse_field(field_tokens):
     # field name
     field_name_token = field_tokens[2]
     if type(field_name_token) != str:
-        print u"[ERROR] Wrong field_name type: " + str(type(field_name_token))
+        print u"[error] Wrong field_name type: " + str(type(field_name_token))
         print field_name_token
         return
     field.name = field_name_token
@@ -1086,10 +1069,10 @@ def generate_base(macros, base_directory):
 
     # rapidjson library
     if not os.path.exists(rapidjson_path):
-        print u"[ERROR] rapidjson库路径不存在." + os.path.abspath(rapidjson_path)
+        print u"[error] rapidjson库路径不存在." + os.path.abspath(rapidjson_path)
         exit(-1)
     if not os.path.isdir(rapidjson_path):
-        print u"[ERROR] rapidjson库路径不是目录." + os.path.abspath(rapidjson_path)
+        print u"[error] rapidjson库路径不是目录." + os.path.abspath(rapidjson_path)
         exit(-1)
 
     try:
@@ -1105,21 +1088,23 @@ def generate_test(base_directory):
     pass
 
 
-def generate_interface(base_directory, namspace_str, class_fields, interface):
+def generate_interface(base_directory, namespace_str, class_fields, interface):
     class_str = ""
     for classField in class_fields:
         class_str += classField.dump()
+    print class_str
 
     ns_str = ""
     file_footer = "\n"
+
     # handle namespace
-    if namspace_str:
-        for nameS in namspace_str:
-            ns_str = ns_str + "namespace " + nameS + " { "
+    if namespace_str:
+        for name in namespace_str:
+            ns_str = ns_str + "namespace " + name + " { "
             file_footer += "} "
         ns_str += "\n\n"
         file_footer += "\n"
-    # print ns_str
+
     # Construct Header #define
     file_head = FILE_HEADER
     file_head = "/*\n" + \
@@ -1142,38 +1127,29 @@ def generate_interface(base_directory, namspace_str, class_fields, interface):
 
 def generate_files(tokens, base_dir):
     if type(tokens) != list or len(tokens) < 1:
-        print u"[错误]无效的tokens. type:" + type(tokens) + ", len:" + len(tokens)
+        print u"[error] Invalid tokens. type:" + type(tokens) + ", len:" + len(tokens)
         print tokens
         return
 
-    # print "--- tokens ---"
-    # print tokens
-    # print "-----------------"
     class_fields = []
     namespace = ""
     for token in tokens:
-        # print token
         if (type(token[0]) == list and token[1] == "class") or token[0] == "class":
-            # print "Parse class..."
             class_field = parse_class(token)
             class_fields.append(class_field)
         elif (type(token[0]) == list and token[1] == "Interface") or token[0] == "Interface":
-            # print "Parse Interface..."
             interface = parse_interface(token)
         elif token[0] == "namespace":
-            # print "Parse  namespace..."
             namespace = parse_namespace(token, base_dir)
         else:
-            print "[ERROR] Parsing token failed! No class or Interface key word find!"
+            print "[error] Parsing token failed! No class or Interface key word find!"
             return
 
     base_directory = base_dir
     namespace_str = ""
     if namespace != "":
         namespace_str = namespace[0]
-        # print namespace_str
         base_directory = namespace[1]
-        # print base_directory
     print "Generating code in dir ---> \"" + base_directory + "\""
 
     # Create dir by namespace
@@ -1181,7 +1157,7 @@ def generate_files(tokens, base_dir):
         try:
             os.makedirs(base_directory)
         except OSError, why:
-            print u"[错误]创建目标文件夹." + os.path.abspath(base_directory) + u"失败."
+            print u"[error ]Failed to create directory:" + os.path.abspath(base_directory)
             exit(-1)
 
     generate_interface(base_directory, namespace_str, class_fields, interface)
@@ -1191,6 +1167,7 @@ def generate_files(tokens, base_dir):
     for res_macros in response_iter_marcos_file:
         str_out += response_iter_marcos_file[res_macros]
     str_out += "\n#endif	/* JSON2CPP_MACRO_H */\n"
+
     # base files
     generate_base(str_out, base_directory)
 
@@ -1207,20 +1184,12 @@ def parse_param(argv):
     base_directory = argv[2]
 
     if not os.path.exists(grammar_file):
-        print u"[错误]文件不存在:" + os.path.abspath(grammar_file)
+        print u"[error]file dose not exist:" + os.path.abspath(grammar_file)
         exit(-1)
 
         if not os.path.isfile(grammar_file):
-            print u"[错误]" + os.path.abspath(grammar_file) + u"不是有效的文件."
+            print u"[erorr]" + os.path.abspath(grammar_file) + u" is not a valid file."
             exit(-1)
-
-    # base_directory = base_directory + os.sep + "jsf"
-    # if not os.path.exists(base_directory):
-    #     try:
-    #         os.makedirs(base_directory)
-    #     except OSError, why:
-    #         print u"[错误]创建目标文件夹." + os.path.abspath(base_directory) + u"失败."
-    #         exit(-1)
 
     return os.path.abspath(grammar_file)
 
