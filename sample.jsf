@@ -31,10 +31,10 @@ namespace jsf::test
 
 @description="地址结构体"
 class Address{	//自定义结构体
-	@jsonname="provinceNo", description="地址编号"
+	@jsonname="provinceNo", description="地址编号",default="1011900"
     int provinceNo;	
 	
-	@jsonname="provinceStr", description="省"
+	@jsonname="provinceStr", description="省",default="上海"
     string province;	
 	
 	@jsonname="city", description="市"
@@ -52,10 +52,10 @@ class Address{	//自定义结构体
 
 @description="发票结构体"
 class InvoiceTicket{
-	@jsonname="invoiceType", description="发票类型"
+	@jsonname="invoiceType", description="发票类型",default="28"
     string invoiceType;
 	
-	@jsonname="invoiceCode", description="发票代码"
+	@jsonname="invoiceCode", description="发票代码",default="ZP1000034883232"
     string invoiceCode;
 	
 	@jsonname="invoiceNo", description="发票号码"
@@ -90,13 +90,13 @@ class InvoiceTicket{
 @description="申请开票接口  balabala...."			//接口说明
 Interface AddInvoice{
 	Request{
-		@jsonname="sourceId", description="来源"
+		@jsonname="sourceId", description="来源",default="100"
 		int source;
 
-		@jsonname="orgId", description="开票机构"
+		@jsonname="orgId", description="开票机构",default="10009"
 		int organizationId;
 
-		@jsonname="ivcType",description="开票类型"
+		@jsonname="ivcType",description="开票类型",default="800000"
 		int invoiceType;
 
 		@jsonname="reqNo", description="申请单号"
@@ -116,7 +116,7 @@ Interface AddInvoice{
 	};
 
 	Response{
-		@jsonname="code", description="业务返回代码"
+		@jsonname="code", description="业务返回代码",default="yy"
 		string code;
 
 		@jsonname="msg", description="业务返回信息"
