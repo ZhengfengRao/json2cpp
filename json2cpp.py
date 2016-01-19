@@ -1173,7 +1173,7 @@ def generate_files(tokens, base_dir):
         except OSError, why:
             print u"[error] Failed to create directory:" + os.path.abspath(base_directory)
             exit(-1)
-    print "Generating code in dir ---> \"" + base_directory + "\""
+    print "Generating code in directory: \"" + base_directory + "\""
 
     for object in class_objects + interface_objects:
         generate_class(base_directory, namespace_str, object)

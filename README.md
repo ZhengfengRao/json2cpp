@@ -107,7 +107,7 @@ As sample.jsf file shows, user can define the class structure as C++ sytle. The 
 ####Definitation of Class, Request and Response:
 ``` cpp
 //namespace Definition
-namespace jsf
+namespace jsf;
 
 //Class Definition
 @description="Address Structure"  //@descpription is optional
