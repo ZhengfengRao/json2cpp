@@ -1,33 +1,58 @@
 /*
-语法：
-	(@description="balaa....")
-	Interface {interface_name}{
+grammar：
+
+//namespace, allow 0 or more
+(namespace {name_space};)
+
+//user define class, allow 0 or more
+(
+(@description="{description_str}")
+class {class_name}{
+	@jsonname={json_filed_name}(,description="{description_str}", optional=["true","false"], default="{default_value_str}")
+	[field_type] {field_name}; 
+};
+)
+ 
+ //interface, allow 1 or more
+(@description="{description_str}")
+Interface {interface_name}{
+	//request, must have only 1 for every interface
 	Request{
-		(@description="balaa....")
-		@jsonname={jsf_filed_name}
+		@jsonname={json_filed_name}(,description="{description_str}", optional=["true","false"], default="{default_value_str}")
 		[field_type] {field_name} (optional); 
 	};
 	
+	//response, must have only 1 for every interface
 	Response{
-		(@description="balaa....")
-		@jsonname={jsf_filed_name}
+		@jsonname={json_filed_name}(,description="{description_str}", optional=["true","false"], default="{default_value_str}")
 		[field_type] {field_name} (optional); 
 	};
 };
 
+约定：
+1.()表示其中的语法token是可选的，可以出现0次或1次
+3.{}表示变量名
+4.@表示其后是注释
+5.[]表示只允许取指定集合中的值
+
 其中：
-1. {interface_name}表示接口名，可以是任何有效的变量名
-2. (@description="balaa....")表示注释，最终写入到生成的头文件中。()表示可选
-3.@jsonname={jsf_filed_name}对应的京东jsf字段名字
-4.[field_type] 字段类型，可选值为[int short string vector<int> vector<short> vector<string>]
-5.{field_name}字段名，可以是任何有效的变量名
-6.(optional)表示该字段是可选的
+0.{name_space}表示namespace,接受c++格式的namespace命名
+1. {class_name},{interface_name},{field_name},{json_filed_name}表示自定义结构体/接口/字段名/json序列化后的字段名，可以是任何有效的变量名
+2.可以通过class关键字定义0个或多个自定义结构体，必须按照使用顺序进行定义
+3.可以通过Interface关键字定义1个或多个接口，每个接口中必须有且仅有1对request/response对象
+4. @表示注释，目前支持jsonname,description,optional,default,含义如下:
+	jsonname:该字段在序列化后的字符串中的名字。[class,Interface可选，filed必填]
+	description:表示注释，出现在生成的C++代码中。[可选]
+	optional:该字段是否可选，取值为"true"或"false"，默认"false"。[可选]
+	default:该字段的默认值。[可选]
+6.[field_type] 字段类型，目前支持short, int, long, bool, unsigned, uint64_t, int64_t, double,自定义结构体,以及vector<T>。
+	其中T可以是其他几种支持的数据类型(包括自定义结构体)
 7.本文件支持c++格式的注释，但解析时直接忽略，不会出现在生成的头文件中
 
 示例如下：
 */
 
-namespace jsf::test
+namespace jsf;
 
 @description="地址结构体"
 class Address{	//自定义结构体
@@ -37,17 +62,14 @@ class Address{	//自定义结构体
 	@jsonname="provinceStr", description="省",default="上海"
     string province;	
 	
-	@jsonname="city", description="市"
+	@jsonname="city", description="市",default="上海"
     string city;	
 	
-	@jsonname="town", description="区县镇"
+	@jsonname="town", description="区县镇",default="徐汇区"
     string town;
 	
-	@jsonname="address", description="详细地址"
+	@jsonname="address", description="详细地址",default="古美路1515弄"
     string address;
-	
-	//@jsonname="optionalAddress", description="备选发票地址"
-    //vector<Address> optionalAddress;
 };
 
 @description="发票结构体"
@@ -116,7 +138,7 @@ Interface AddInvoice{
 	};
 
 	Response{
-		@jsonname="code", description="业务返回代码",default="yy"
+		@jsonname="code", description="业务返回代码",default="yx"
 		string code;
 
 		@jsonname="msg", description="业务返回信息"
@@ -133,3 +155,28 @@ Interface AddInvoice{
 	};
 };
 
+
+@description="新增商品"			//接口说明
+Interface AddWare{
+	Request{
+		@jsonname="sourceId", description="来源",default="100"
+		int source;
+
+		@jsonname="receiverNo", description="收款方识别号", optional="true" //可选字段
+		string receiverNo ;
+
+		@jsonname="businessIds", description="订单列表"
+		vector<string> bussinessIds;
+	};
+
+	Response{
+		@jsonname="code", description="业务返回代码",default="yy"
+		string code;
+
+		@jsonname="msg", description="业务返回信息"
+		string message;
+
+		@jsonname="reqNo", description="申请单号"
+		string requestNo;
+	};
+};
