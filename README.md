@@ -32,7 +32,7 @@ Thie simple instruction shows a common running command of json2cpp
 ``` shell
 git clone https://github.com/nasacj/json2cpp
 cd json2cpp
-./json2cpp sample.jsf test
+./json2cpp.py sample.jsf test
 cd test/test
 make & ./test
 ```
@@ -107,7 +107,7 @@ As sample.jsf file shows, user can define the class structure as C++ sytle. The 
 ####Definitation of Class, Request and Response:
 ``` cpp
 //namespace Definition
-namespace jsf::test
+namespace jsf
 
 //Class Definition
 @description="Address Structure"  //@descpription is optional
@@ -119,6 +119,7 @@ class Address
     @jsonname="provinceStr", description="Province"
     string province;
 };
+
 //@descpription is optional
 class InvoiceTicket
 {
@@ -184,7 +185,7 @@ Interface AddInvoice {
 ```
 ###Generate the C++ Class files
 ``` shell
-./json2cpp sample.jsf dir_test
+./json2cpp.py sample.jsf dir_test
 ```
 Command *json2cpp* takes 2 arguements: *{Class definitation File}* *{Directory}*
 Outputs in *dir_test* path is organized by the namespace defined in *sample.jsf*:
@@ -192,27 +193,37 @@ Outputs in *dir_test* path is organized by the namespace defined in *sample.jsf*
 dir_test
 ├── jsf
      ├── AddInvoice.h
+     ├── AddWare.h
+     ├── Address.h
+     ├── InvoiceTicket.h
+     ├── json2cpp.h
      ├── base.h
      ├── macro.h
-     └── test
-          ├── AddInvoice.h *
-          ├── base.h
-          ├── macro.h
-          └── rapidjson
+     └── rapidjson
                 ├──
                  ......
 ```
-The AddInvoice.h file is the main class file for handling serialization of Request & Response between JSON and C++ objects.
 
 ###Class Usage
-base.h file defines the basic object access:
+base.h: defines the basic object access:
 >* Field<>:     Every json object in interface class are all Field type. It has Get/SetVaule()
 >* IRequest:  *ToJson()* serialize C++ Object to JSON string
 >* IResponse: *FromJson()* unserialize JSON string to C++ Object
+macro.h: defines some marcos for internel use.
+json2cpp.h: include all header files, provide for other to use.
 
-AddInvoice.h: The main class *AddInvoiceRequest* and *AddInvoiceResponse* generated from *sample.jsf* inherit from IRequest and IResponse.
+json2cpp will generate a hpp file each user defined class and interface.
+AddInvoice.h: interface AddInvoice implemention.
+AddWare.h: interface AddWare implemention.
+Address.h: user define class Address implemention.
+InvoiceTicket.h: user define class InvoiceTicket implemetion.
+
+all you have to do is include header file "json2cpp.h", and use the classes generated.
+
 ####C++ Sample Code:
 ``` cpp
+#include "json2cpp.h"
+
 /**** Request Sample ****/
 AddInvoiceRequest request;
 Address address;

@@ -42,7 +42,7 @@ BASE_H = '''/*
 
 using namespace std;
 
-/*使用rapidjson做序列化，保证序列化后的json参数有序*/
+/*use rapidjson ro serializing，keep fields in json string in order.*/
 #include "rapidjson/rapidjson.h"
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
@@ -76,7 +76,7 @@ protected:
     bool m_bSet;
 public:
     Field(const std::string& strName, bool bNeed = false)
-    :m_tValue() //T类型初始化
+    :m_tValue() //T
     ,m_strName(strName)
     ,m_bNeed(bNeed)
     ,m_bSet(false)
@@ -145,9 +145,6 @@ public:
     {
         T().swap(this->m_tValue);
         this->m_bSet = false;
-
-        //无法编译通过，因为是继承模板类
-        //m_bSet = false;
     }
 };
 
@@ -223,7 +220,7 @@ public:
             {
                 m_JSFMessage.SetValue(doc["error"].GetString());
             }
-            else//没有按格式返回错误，就将返回的全部字符串保存起来
+            else
             {
                 m_JSFMessage.SetValue(strJson);
             }
@@ -278,7 +275,7 @@ namespace json2cpp{
         jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), field.GetValue(), allocator);\\
     }
 
-//使用const-string，不复制字符串
+//use const-string，do not copy string
 //http://miloyip.github.io/rapidjson/zh-cn/md_doc_tutorial_8zh-cn.html#CreateModifyValues
 #define TOJSON_REQUEST_FIELD_STRING(field, jsonObject, allocator) \\
     if(field.IsValueSet()) \\
@@ -446,7 +443,6 @@ response_iter_marcos_file = {"": ""}
 
 
 def construct_request_iter_marco(vec_type):
-    # print "construct_request_iter_marco-->" + vec_type
     normal_type = ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]
     common_str_head = "\tif(field.IsValueSet()) \\\n" \
                       "\t{ \\\n" \
@@ -455,7 +451,6 @@ def construct_request_iter_marco(vec_type):
                       "\t}\n\n"
 
     if vec_type in normal_type:    # Normal Type (Numbers)
-        # print "Normal"
         request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
                 "_ARRAY(field, jsonObject, allocator) \\\n" + \
                 common_str_head + \
@@ -467,7 +462,6 @@ def construct_request_iter_marco(vec_type):
                 "\t\t} \\\n" + \
                 common_str_foot
     elif vec_type == "string":
-        # print "string"
         request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
                 "_ARRAY(field, jsonObject, allocator) \\\n" + \
                 common_str_head + \
@@ -479,7 +473,6 @@ def construct_request_iter_marco(vec_type):
                 "\t\t} \\\n" + \
                 common_str_foot
     else:
-        # print "Object"
         request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
                 "_ARRAY(field, jsonObject, allocator) \\\n" + \
                 common_str_head + \
@@ -496,7 +489,6 @@ def construct_request_iter_marco(vec_type):
 
 
 def construct_response_iter_marco(vec_type):
-    # print "construct_request_iter_marco-->" + vec_type
     normal_type = ["short", "int", "long", "bool", "unsigned", "uint64_t", "int64_t", "double"]
     common_str_head = "\tif(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()]." \
                       "IsArray()) \\\n" \
@@ -510,7 +502,6 @@ def construct_response_iter_marco(vec_type):
                       "\t}\n\n"
 
     if vec_type in normal_type:    # Normal Type (Numbers)
-        # print "Normal"
         response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
                 "_ARRAY(values, field) \\\n" + \
                 common_str_head + \
@@ -521,7 +512,6 @@ def construct_response_iter_marco(vec_type):
                 common_str_foot
 
     elif vec_type == "string":
-        # print "string"
         response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
                 "_ARRAY(values, field) \\\n" + \
                 common_str_head + \
@@ -531,7 +521,6 @@ def construct_response_iter_marco(vec_type):
                 iter_c_str_foot + \
                 common_str_foot
     else:
-        # print "Object"
         response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
                 "_ARRAY(values, field) \\\n" + \
                 common_str_head + \
@@ -723,6 +712,7 @@ class Class(FieldCollector):
 
         return from_json_method
 
+    @property
     def dump(self):
         init_list = self.dump_initialize_list()
         init_list = list(init_list)
@@ -798,7 +788,6 @@ class Interface:
             + "};"
 
         return request_str + "\n\n" + response_str
-        #source file
 
 
 def key_value_field(keyName):
@@ -827,7 +816,7 @@ def load_grammar():
     default_key = "default"
 
     field_type = Word(alphanums + "_/<>")
-    namespace = Group(namespace_key + keyword + ZeroOrMore(nspace + keyword))
+    namespace = Group(namespace_key + keyword + ZeroOrMore(nspace + keyword) + semicolon)
     description = Group(at + description_key + equal + quotedString)
     jsonname = Group(at + jsonname_key + equal + quotedString)
     comment = Group(jsonname + Optional(comma + key_value_field(description_key)) \
@@ -919,7 +908,7 @@ def parse_interface(interface_token):
     # interface name
     interface_name = interface_token[description_dis + 1]
     if type(interface_name) != str:
-        print u"[error]Interface name <" + interface_name + u">should be str type, but now: " + type(interface_name)
+        print u"[error] Interface name <" + interface_name + u">should be str type, but now: " + type(interface_name)
         return
     interface.name = interface_name
 
@@ -930,7 +919,7 @@ def parse_interface(interface_token):
     # interface response
     interface_response = interface_token[description_dis + 3]
     if type(interface_response) != list:
-        print u"[错误]错误的response类型." + type(interface_response)
+        print u"[error] Invalid response type." + type(interface_response)
         print interface_response
         return
     interface.response = parse_response(interface_response)
@@ -1058,21 +1047,48 @@ def parse_field(field_tokens):
 '''
 ################################ generate c++ files ####################################
 '''
-def generate_base(macros, base_directory):
-    macro_h = open(base_directory + os.sep + "macro.h", "w")
-    macro_h.write(macros)
-    macro_h.close()
+def get_namespace_str():
+    str = ""
+    return str
 
-    base_h = open(base_directory + os.sep + "base.h", "w")
-    base_h.write(BASE_H)
-    base_h.close()
+def write_file(file_name, content):
+    print "Generating " + file_name + "..."
+    file = open(file_name, "w")
+    file.write(content)
+    file.close()
+
+
+def generate_base(base_directory, class_objects):
+    #base.h
+    write_file(base_directory + os.sep + "base.h", BASE_H)
+
+    #macro.h
+    macros = MACRO_H
+    for req_macros in request_iter_marcos_file:
+        macros += request_iter_marcos_file[req_macros]
+    for res_macros in response_iter_marcos_file:
+        macros += response_iter_marcos_file[res_macros]
+    macros += "\n#endif	/* JSON2CPP_MACRO_H */\n"
+    write_file(base_directory + os.sep + "macro.h", macros)
+
+    #json2cpp.h
+    include_str = """
+#include "base.h"
+#include "macro.h"
+
+"""
+
+    for object in class_objects:
+        include_str += "#include \"" + object.name + ".h\"\n"
+
+    write_file(base_directory + os.sep + "json2cpp.h", include_str)
 
     # rapidjson library
     if not os.path.exists(rapidjson_path):
-        print u"[error] rapidjson库路径不存在." + os.path.abspath(rapidjson_path)
+        print u"[error] rapidjson lirary dose not exist." + os.path.abspath(rapidjson_path)
         exit(-1)
     if not os.path.isdir(rapidjson_path):
-        print u"[error] rapidjson库路径不是目录." + os.path.abspath(rapidjson_path)
+        print u"[error] rapidjson path is not directory." + os.path.abspath(rapidjson_path)
         exit(-1)
 
     try:
@@ -1087,42 +1103,34 @@ def generate_base(macros, base_directory):
 def generate_test(base_directory):
     pass
 
-
-def generate_interface(base_directory, namespace_str, class_fields, interface):
-    class_str = ""
-    for classField in class_fields:
-        class_str += classField.dump()
-    print class_str
-
-    ns_str = ""
+#generate and interface(a type of class)
+def generate_class(base_directory, namespace, object):
+    namespace_str = ""
     file_footer = "\n"
 
     # handle namespace
-    if namespace_str:
-        for name in namespace_str:
-            ns_str = ns_str + "namespace " + name + " { "
+    if namespace:
+        for name in namespace:
+            namespace_str = namespace_str + "namespace " + name + " { "
             file_footer += "} "
-        ns_str += "\n\n"
+        namespace_str += "\n\n"
         file_footer += "\n"
 
     # Construct Header #define
-    file_head = FILE_HEADER
-    file_head = "/*\n" + \
-                " * File:   " + interface.name + ".h\n" + \
+    file_header = FILE_HEADER
+    file_header = "/*\n" + \
+                " * File:   " + object.name + ".h\n" + \
                 " * Author: json2cpp\n" + \
                 " *\n" + \
                 " * Created on " + current_time + "\n" + \
                 " */\n\n" + \
-                "#ifndef JSON2CPP_" + interface.name.upper() + "_H\n" + \
-                "#define JSON2CPP_" + interface.name.upper() + "_H\n\n" + \
-        file_head
-    file_footer += "#endif	/* JSON2CPP_" + interface.name.upper() + "_H */\n"
+                "#ifndef JSON2CPP_" + object.name.upper() + "_H\n" + \
+                "#define JSON2CPP_" + object.name.upper() + "_H\n\n" + \
+        file_header
+    file_footer += "#endif	/* JSON2CPP_" + object.name.upper() + "_H */\n"
 
-    header = file_head + ns_str + class_str + interface.dump + file_footer
-
-    header_h = open(base_directory + os.sep + interface.name + ".h", "w")
-    header_h.write(header)
-    header_h.close()
+    content = file_header + namespace_str + object.dump + file_footer
+    write_file(base_directory + os.sep + object.name + ".h", content)
 
 
 def generate_files(tokens, base_dir):
@@ -1131,45 +1139,47 @@ def generate_files(tokens, base_dir):
         print tokens
         return
 
-    class_fields = []
-    namespace = ""
-    for token in tokens:
+    class_objects = []
+    interface_objects = []
+
+    namespace_str = ""
+    base_directory = base_dir
+
+    # for token in tokens:
+    for i in range(len(tokens)):
+        token = tokens[i]
         if (type(token[0]) == list and token[1] == "class") or token[0] == "class":
-            class_field = parse_class(token)
-            class_fields.append(class_field)
+            class_object = parse_class(token)
+            class_objects.append(class_object)
         elif (type(token[0]) == list and token[1] == "Interface") or token[0] == "Interface":
             interface = parse_interface(token)
+            interface_objects.append(interface)
         elif token[0] == "namespace":
+            if i != 0:
+                print "[error] Namespace must be first token!"
+                exit(-1)
             namespace = parse_namespace(token, base_dir)
+            if namespace != "":
+                namespace_str = namespace[0]
+                base_directory = namespace[1]
         else:
             print "[error] Parsing token failed! No class or Interface key word find!"
-            return
-
-    base_directory = base_dir
-    namespace_str = ""
-    if namespace != "":
-        namespace_str = namespace[0]
-        base_directory = namespace[1]
-    print "Generating code in dir ---> \"" + base_directory + "\""
+            exit(-1)
 
     # Create dir by namespace
     if not os.path.exists(base_directory):
         try:
             os.makedirs(base_directory)
         except OSError, why:
-            print u"[error ]Failed to create directory:" + os.path.abspath(base_directory)
+            print u"[error] Failed to create directory:" + os.path.abspath(base_directory)
             exit(-1)
+    print "Generating code in dir ---> \"" + base_directory + "\""
 
-    generate_interface(base_directory, namespace_str, class_fields, interface)
-    str_out = MACRO_H
-    for req_macros in request_iter_marcos_file:
-        str_out += request_iter_marcos_file[req_macros]
-    for res_macros in response_iter_marcos_file:
-        str_out += response_iter_marcos_file[res_macros]
-    str_out += "\n#endif	/* JSON2CPP_MACRO_H */\n"
+    for object in class_objects + interface_objects:
+        generate_class(base_directory, namespace_str, object)
 
     # base files
-    generate_base(str_out, base_directory)
+    generate_base(base_directory, class_objects + interface_objects)
 
 
 '''

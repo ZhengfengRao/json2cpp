@@ -1,8 +1,8 @@
 #include <iostream>
-#include "AddInvoice.h"
+#include "json2cpp.h"
 #include <fstream>
 
-using namespace jsf::test;
+using namespace jsf;
 
 void test_AddInvoiceRequest()
 {
