@@ -16,15 +16,14 @@ compiler:
 before_install:
   # pyparsing
   - sudo easy_install pyparsing
+  - sudo apt-get install cmake
 install:
   
 before_script:
 
 script:
-  - python json2cpp.py sample.jsf test
-  - cd test/test
-  - make
-  - ./test  
+  - ./test_with_JsonCPP.sh
+  - ./test_with_RapidJson.sh
 
 notifications:
   email: false

@@ -1,0 +1,11 @@
+EXE = test
+LIB = -L../../jsoncpp/lib/ -ljsoncpp
+INC = -I../jsf/ -I../../jsoncpp/include/
+SRC = test.cpp
+
+$(EXE):$(SRC)
+	    g++ -std=c++11 $(SRC) $(INC) $(LIB) -o $(EXE)
+
+.PHONY:clean
+	clean:
+	    rm -rf $(EXE) test.exe test 
