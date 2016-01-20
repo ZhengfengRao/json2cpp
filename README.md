@@ -1,6 +1,6 @@
 json2cpp
 =======
-![](https://img.shields.io/badge/release-0.01-blue.svg)
+![](https://img.shields.io/badge/release-0.31-blue.svg)
 ##A tool for Modelling JSON to C++
 Copyright (C) 2016, ICSON company, ZhengFeng Rao, NASaCJ. All rights reserved.
 
