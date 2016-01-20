@@ -16,15 +16,22 @@ compiler:
 before_install:
   # pyparsing
   - sudo easy_install pyparsing
+  # g++4.8.1
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - sudo apt-get update -qq
+
 install:
+  - sudo apt-get install -qq gcc-4.8 g++-4.8
+  # We want to compile with g++ 4.8 when rather than the default g++
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 90
+
   
 before_script:
 
 script:
-  - python json2cpp.py sample.jsf test
-  - cd test/test
-  - make
-  - ./test  
+  - chmod 777 test_with_JsonCPP.sh test_with_RapidJson.sh
+  - ./test_with_JsonCPP.sh
+  - ./test_with_RapidJson.sh
 
 notifications:
   email: false

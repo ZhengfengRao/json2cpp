@@ -1,6 +1,6 @@
 EXE = test
 LIB = 
-INC = -I../jsf/test/
+INC = -I../jsf/
 SRC = test.cpp
 
 $(EXE):$(SRC)
