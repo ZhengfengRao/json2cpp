@@ -22,10 +22,10 @@
       <h1>
 <a id="json2cpp" class="anchor" href="#json2cpp" aria-hidden="true"><span class="octicon octicon-link"></span></a>json2cpp</h1>
 
-<p><img src="https://img.shields.io/badge/release-0.01-blue.svg" alt=""></p>
+<p><img src="https://img.shields.io/badge/release-0.3.2-blue.svg" alt=""></p>
 
 <h2>
-<a id="a-tool-for-modelling-json-to-c" class="anchor" href="#a-tool-for-modelling-json-to-c" aria-hidden="true"><span class="octicon octicon-link"></span></a>A tool for Modelling JSON to C++</h2>
+<a id="a-tool-for-json--c-mapping" class="anchor" href="#a-tool-for-json--c-mapping" aria-hidden="true"><span class="octicon octicon-link"></span></a>A tool for JSON &amp; C++ Mapping</h2>
 
 <p>Copyright (C) 2016, ZhengFeng Rao, NASaCJ. All rights reserved.</p>
 
@@ -52,7 +52,7 @@
 
 <p>JSON is a kind of <strong>Object</strong> notation. When programmers deal with the json strings by C++ json APIs (eg, <a href="https://github.com/miloyip/rapidjson">RapidJSON</a>, <a href="https://github.com/open-source-parsers/jsoncpp">jsoncpp</a>) they have to write codes for parsing each different Class, which there may be a lot of similar repeated API calling codes.
 So json2cpp can help programmer to auto-generate the C++ codes for transferring form JSON to C++ and conversely.
-json2cpp is a script tool written in python language. It uses <a href="http://pyparsing.wikispaces.com/">pyparsing</a> to parse a Modeling file to C++ files and <a href="https://github.com/miloyip/rapidjson">RapidJSON</a> for C++ to parse the JSON.</p>
+json2cpp is a script tool written in python language. It uses <a href="http://pyparsing.wikispaces.com/">pyparsing</a> to parse a Modeling file to C++ files and <a href="https://github.com/miloyip/rapidjson">RapidJSON</a>, <a href="https://github.com/open-source-parsers/jsoncpp">jsoncpp</a> for C++ to parse the JSON.</p>
 
 <h2>
 <a id="installation-before-use" class="anchor" href="#installation-before-use" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation before use</h2>
@@ -71,9 +71,10 @@ json2cpp is a script tool written in python language. It uses <a href="http://py
 
 <div class="highlight highlight-source-shell"><pre>git clone https://github.com/nasacj/json2cpp
 <span class="pl-c1">cd</span> json2cpp
-./json2cpp sample.jsf <span class="pl-c1">test</span>
+./json2cpp.py rapidjson sample.jsf <span class="pl-c1">test</span>
 <span class="pl-c1">cd</span> test/test
-make <span class="pl-k">&amp;</span> ./test</pre></div>
+make
+./test</pre></div>
 
 <h2>
 <a id="usage" class="anchor" href="#usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Usage</h2>
@@ -153,10 +154,10 @@ make <span class="pl-k">&amp;</span> ./test</pre></div>
 <a id="definitation-of-class-request-and-response" class="anchor" href="#definitation-of-class-request-and-response" aria-hidden="true"><span class="octicon octicon-link"></span></a>Definitation of Class, Request and Response:</h4>
 
 <div class="highlight highlight-source-c++"><pre><span class="pl-c">//namespace Definition</span>
-<span class="pl-k">namespace</span> <span class="pl-en">jsf</span>::test
+<span class="pl-k">namespace</span> <span class="pl-en">jsf</span><span class="pl-k">;</span>
 
 <span class="pl-c">//Class Definition</span>
-@description<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>Address Structure<span class="pl-pds">"</span></span>  <span class="pl-c">//@descpription is optional</span>
+@description=<span class="pl-s"><span class="pl-pds">"</span>Address Structure<span class="pl-pds">"</span></span>  <span class="pl-c">//@descpription is optional</span>
 <span class="pl-k">class</span> <span class="pl-en">Address</span>
 {
     @jsonname=<span class="pl-s"><span class="pl-pds">"</span>provinceNo<span class="pl-pds">"</span></span>, description=<span class="pl-s"><span class="pl-pds">"</span>Province ID<span class="pl-pds">"</span></span> <span class="pl-c">//@descpription is optional</span>
@@ -165,6 +166,7 @@ make <span class="pl-k">&amp;</span> ./test</pre></div>
     @jsonname=<span class="pl-s"><span class="pl-pds">"</span>provinceStr<span class="pl-pds">"</span></span>, description=<span class="pl-s"><span class="pl-pds">"</span>Province<span class="pl-pds">"</span></span>
     string province;
 };
+
 <span class="pl-c">//@descpription is optional</span>
 <span class="pl-k">class</span> <span class="pl-en">InvoiceTicket</span>
 {
@@ -231,7 +233,7 @@ Interface AddInvoice {
 <h3>
 <a id="generate-the-c-class-files" class="anchor" href="#generate-the-c-class-files" aria-hidden="true"><span class="octicon octicon-link"></span></a>Generate the C++ Class files</h3>
 
-<div class="highlight highlight-source-shell"><pre>./json2cpp sample.jsf dir_test</pre></div>
+<div class="highlight highlight-source-shell"><pre>./json2cpp.py sample.jsf dir_test</pre></div>
 
 <p>Command <em>json2cpp</em> takes 2 arguements: <em>{Class definitation File}</em> <em>{Directory}</em>
 Outputs in <em>dir_test</em> path is organized by the namespace defined in <em>sample.jsf</em>:</p>
@@ -239,38 +241,46 @@ Outputs in <em>dir_test</em> path is organized by the namespace defined in <em>s
 <pre lang="plain"><code>dir_test
 ├── jsf
      ├── AddInvoice.h
+     ├── AddWare.h
+     ├── Address.h
+     ├── InvoiceTicket.h
+     ├── json2cpp.h
      ├── base.h
      ├── macro.h
-     └── test
-          ├── AddInvoice.h *
-          ├── base.h
-          ├── macro.h
-          └── rapidjson
+     └── rapidjson
                 ├──
                  ......
 </code></pre>
 
-<p>The AddInvoice.h file is the main class file for handling serialization of Request &amp; Response between JSON and C++ objects.</p>
-
 <h3>
 <a id="class-usage" class="anchor" href="#class-usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Class Usage</h3>
 
-<p>base.h file defines the basic object access:</p>
+<p>base.h: defines the basic object access:</p>
 
 <blockquote>
 <ul>
 <li>Field&lt;&gt;:     Every json object in interface class are all Field type. It has Get/SetVaule()</li>
 <li>IRequest:  <em>ToJson()</em> serialize C++ Object to JSON string</li>
-<li>IResponse: <em>FromJson()</em> unserialize JSON string to C++ Object</li>
+<li>IResponse: <em>FromJson()</em> unserialize JSON string to C++ Object
+macro.h: defines some marcos for internel use.
+json2cpp.h: include all header files, provide for other to use.</li>
 </ul>
 </blockquote>
 
-<p>AddInvoice.h: The main class <em>AddInvoiceRequest</em> and <em>AddInvoiceResponse</em> generated from <em>sample.jsf</em> inherit from IRequest and IResponse.</p>
+<p>json2cpp will generate a hpp file each user defined class and interface.
+AddInvoice.h: interface AddInvoice implemention.
+AddWare.h: interface AddWare implemention.
+Address.h: user define class Address implemention.
+InvoiceTicket.h: user define class InvoiceTicket implemetion.</p>
+
+<p>all you have to do is include header file "json2cpp.h", and use the classes generated.</p>
 
 <h4>
 <a id="c-sample-code" class="anchor" href="#c-sample-code" aria-hidden="true"><span class="octicon octicon-link"></span></a>C++ Sample Code:</h4>
 
-<div class="highlight highlight-source-c++"><pre><span class="pl-c">/**** Request Sample ****/</span>
+<div class="highlight highlight-source-c++"><pre>#<span class="pl-k">include</span> <span class="pl-s"><span class="pl-pds">"</span>json2cpp.h<span class="pl-pds">"</span></span>
+
+<span class="pl-c">/**** Request Sample ****/</span>
 AddInvoiceRequest request;
 Address address;
 Address address1;
@@ -317,6 +327,97 @@ AddInvoiceResponse response;
     std::cout&lt;&lt;<span class="pl-s"><span class="pl-pds">"</span>error:<span class="pl-pds">"</span></span>&lt;&lt;ret&lt;&lt;<span class="pl-s"><span class="pl-pds">"</span>, <span class="pl-pds">"</span></span>&lt;&lt;response.<span class="pl-smi">m_JSFMessage</span>.<span class="pl-c1">GetValue</span>()&lt;&lt;std::endl;
     <span class="pl-k">return</span>;
 }</pre></div>
+
+<h3>
+<a id="grammar" class="anchor" href="#grammar" aria-hidden="true"><span class="octicon octicon-link"></span></a>Grammar</h3>
+
+<div class="highlight highlight-source-c++"><pre><span class="pl-c">//namespace, allow 0 or more</span>
+(<span class="pl-k">namespace</span> {name_space};)
+
+<span class="pl-c">//user define class, allow 0 or more</span>
+(
+(@description=<span class="pl-s"><span class="pl-pds">"</span>{description_str}<span class="pl-pds">"</span></span>)
+<span class="pl-k">class</span> {class_name}{
+    @jsonname={json_filed_name}(,description=<span class="pl-s"><span class="pl-pds">"</span>{description_str}<span class="pl-pds">"</span></span>, optional=[<span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>false<span class="pl-pds">"</span></span>], <span class="pl-k">default</span>=<span class="pl-s"><span class="pl-pds">"</span>{default_value_str}<span class="pl-pds">"</span></span>)
+    [field_type] {field_name}; 
+};
+)
+
+ <span class="pl-c">//interface, allow 1 or more</span>
+(@description=<span class="pl-s"><span class="pl-pds">"</span>{description_str}<span class="pl-pds">"</span></span>)
+Interface {interface_name}{
+    <span class="pl-c">//request, must have only 1 for every interface</span>
+    Request{
+        @jsonname={json_filed_name}(,description=<span class="pl-s"><span class="pl-pds">"</span>{description_str}<span class="pl-pds">"</span></span>, optional=[<span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>false<span class="pl-pds">"</span></span>], <span class="pl-k">default</span>=<span class="pl-s"><span class="pl-pds">"</span>{default_value_str}<span class="pl-pds">"</span></span>)
+        [field_type] {field_name} (optional); 
+    };
+
+    <span class="pl-c">//response, must have only 1 for every interface</span>
+    Response{
+        @jsonname={json_filed_name}(,description=<span class="pl-s"><span class="pl-pds">"</span>{description_str}<span class="pl-pds">"</span></span>, optional=[<span class="pl-s"><span class="pl-pds">"</span>true<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>false<span class="pl-pds">"</span></span>], <span class="pl-k">default</span>=<span class="pl-s"><span class="pl-pds">"</span>{default_value_str}<span class="pl-pds">"</span></span>)
+        [field_type] {field_name} (optional); 
+    };
+};
+
+</pre></div>
+
+<h4>
+<a id="conventions" class="anchor" href="#conventions" aria-hidden="true"><span class="octicon octicon-link"></span></a>Conventions：</h4>
+
+<ol>
+<li>
+<strong>()</strong> means the grammar token is optional, it can be defined 0 or 1</li>
+<li>
+<strong>{}</strong> means variable name</li>
+<li>
+<strong>@</strong> means comments</li>
+<li>
+<strong>[]</strong> means specified value of the set</li>
+</ol>
+
+<h4>
+<a id="details" class="anchor" href="#details" aria-hidden="true"><span class="octicon octicon-link"></span></a>Details：</h4>
+
+<ol>
+<li>
+<strong>{name_space}</strong> means C++ style namespace</li>
+<li>
+<strong>{class_name}</strong>, <strong>{interface_name}</strong>, <strong>{field_name}</strong>, <strong>{json_filed_name}</strong> means self-defined struct/class, Interface, Field Name, JSON Field name. They can be any valid string</li>
+<li>User can define 1 or more <strong>class</strong>, the definitation sequence should follow the C++ style</li>
+<li>User can define 1 or more <strong>Interface</strong>，each Interface MUST have a pair of request/response objects</li>
+<li>
+<p><strong>@</strong> means comments，now it supports <strong>jsonname</strong>, <strong>description</strong>, <strong>optional</strong>, <strong>default</strong> key-words:</p>
+
+<table>
+<thead>
+<tr>
+<th align="center">Key-Word</th>
+<th align="center">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">jsonname</td>
+<td align="center">JSON Field Name [It MUST be specified]</td>
+</tr>
+<tr>
+<td align="center">description</td>
+<td align="center">It will be generated into C++ code for comments [Optional]</td>
+</tr>
+<tr>
+<td align="center">optional</td>
+<td align="center">Specifies the JSON field is optional，value should be "true" or "false"，default is"false" [Optional]</td>
+</tr>
+<tr>
+<td align="center">default</td>
+<td align="center">Specifies the default value of C++ member feild [Optional]</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li><p><strong>[field_type]</strong> Filed Type. Now supporting <em>short</em>, <em>int</em>, <em>bool</em>, <em>uint32_t</em>, <em>uint64_t</em>, <em>int64_t</em>, <em>double</em>, self-define class <em>T</em> and <em>vector&lt;</em><em>T</em><em>&gt;</em>.</p></li>
+<li><p>Supports C++ sytle comments like <code>//comments</code> and <code>/*comments*/</code> , the commots will be ignored when being parsing.</p></li>
+</ol>
 
       <footer class="site-footer">
         <span class="site-footer-owner"><a href="https://github.com/ZhengfengRao/json2cpp">Json2cpp</a> is maintained by <a href="https://github.com/ZhengfengRao">ZhengfengRao</a>.</span>
