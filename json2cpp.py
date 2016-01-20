@@ -6,8 +6,10 @@ reload(sys)
 sys.setdefaultencoding('utf8')
 
 import os
+import platform
 import shutil
 import time
+import codecs
 
 from pyparsing import *
 
@@ -1406,8 +1408,11 @@ def get_namespace_str():
 
 def write_file(file_name, content):
     print "Generating " + file_name + "..."
-    file = open(file_name, "w")
-    file.write(content)
+
+    #vs2010 can not read files encoded with utf-8(without BOM)
+    #fuck
+    file = codecs.open(file_name, "w", "utf_8_sig") if platform.system() == "Windows" else open(file_name, "w")
+    file.write(content.encode("utf-8"))
     file.close()
 
 
@@ -1440,21 +1445,22 @@ def generate_base(base_directory, class_objects):
 
     write_file(base_directory + os.sep + "json2cpp.h", include_str)
 
-    # rapidjson library
-    if not os.path.exists(rapidjson_path):
-        print u"[error] rapidjson lirary dose not exist." + os.path.abspath(rapidjson_path)
-        exit(-1)
-    if not os.path.isdir(rapidjson_path):
-        print u"[error] rapidjson path is not directory." + os.path.abspath(rapidjson_path)
-        exit(-1)
+    if JSON_API == JSON_API_RAPIDJSON:
+        # rapidjson library
+        if not os.path.exists(rapidjson_path):
+            print u"[error] rapidjson lirary dose not exist." + os.path.abspath(rapidjson_path)
+            exit(-1)
+        if not os.path.isdir(rapidjson_path):
+            print u"[error] rapidjson path is not directory." + os.path.abspath(rapidjson_path)
+            exit(-1)
 
-    try:
-        rapidjson_directory = base_directory + os.sep + "rapidjson"
-        if os.path.exists(rapidjson_directory):
-            shutil.rmtree(rapidjson_directory)
-        shutil.copytree(os.path.abspath(rapidjson_path), rapidjson_directory)
-    except Exception, e:
-        print e
+        try:
+            rapidjson_directory = base_directory + os.sep + "rapidjson"
+            if os.path.exists(rapidjson_directory):
+                shutil.rmtree(rapidjson_directory)
+            shutil.copytree(os.path.abspath(rapidjson_path), rapidjson_directory)
+        except Exception, e:
+            print e
 
 
 def generate_test(base_directory):
