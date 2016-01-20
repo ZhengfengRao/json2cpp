@@ -11,6 +11,7 @@ mkdir lib
 cp build/debug/src/lib_json/libjsoncpp.a lib/
 cd ..
 ./json2cpp.py jsoncpp sample.jsf test
-cd ../test/test/
+cd test/test/
 cp ../Makefile.jsoncpp ./Makefile
-make & ./test
+make
+./test
