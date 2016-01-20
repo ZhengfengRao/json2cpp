@@ -22,6 +22,7 @@ install:
 before_script:
 
 script:
+  - chmod 777 test_with_JsonCPP.sh test_with_RapidJson.sh
   - ./test_with_JsonCPP.sh
   - ./test_with_RapidJson.sh
 
