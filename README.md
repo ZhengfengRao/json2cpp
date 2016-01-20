@@ -1,7 +1,7 @@
 json2cpp
 =======
-![](https://img.shields.io/badge/release-0.31-blue.svg)
-##A tool for Modelling JSON to C++
+![](https://img.shields.io/badge/release-0.3.2-blue.svg)
+##A tool for JSON & C++ Mapping
 Copyright (C) 2016, ICSON company, ZhengFeng Rao, NASaCJ. All rights reserved.
 
 ## Build Status
