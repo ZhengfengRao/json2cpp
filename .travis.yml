@@ -16,7 +16,10 @@ compiler:
 before_install:
   # pyparsing
   - sudo easy_install pyparsing
-  - sudo apt-get install cmake
+  # g++4.8.1
+  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  - sudo apt-get update -qq
+
 install:
   - sudo apt-get install -qq gcc-4.8 g++-4.8
   # We want to compile with g++ 4.8 when rather than the default g++
