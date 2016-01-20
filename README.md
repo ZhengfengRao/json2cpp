@@ -19,7 +19,7 @@ Copyright (C) 2016, ICSON company, ZhengFeng Rao, NASaCJ. All rights reserved.
 
 JSON is a kind of **Object** notation. When programmers deal with the json strings by C++ json APIs (eg, [RapidJSON][rapidjson-link], [jsoncpp][jsoncpp-link]) they have to write codes for parsing each different Class, which there may be a lot of similar repeated API calling codes.
 So json2cpp can help programmer to auto-generate the C++ codes for transferring form JSON to C++ and conversely.
-json2cpp is a script tool written in python language. It uses [pyparsing][pyparsing-link] to parse a Modeling file to C++ files and [RapidJSON][rapidjson-link] for C++ to parse the JSON.
+json2cpp is a script tool written in python language. It uses [pyparsing][pyparsing-link] to parse a Modeling file to C++ files and [RapidJSON][rapidjson-link], [jsoncpp][jsoncpp-link] for C++ to parse the JSON.
 
 ##Installation before use
 * json2cpp depends on Python and pyparsing, so make sure that [Python][python-link] has been installed on your System
@@ -32,9 +32,10 @@ Thie simple instruction shows a common running command of json2cpp
 ``` shell
 git clone https://github.com/nasacj/json2cpp
 cd json2cpp
-./json2cpp.py sample.jsf test
+./json2cpp.py rapidjson sample.jsf test
 cd test/test
-make & ./test
+make
+./test
 ```
 
 ##Usage
@@ -272,3 +273,61 @@ if(ret != json2cpp::ERR_OK)
     return;
 }
 ```
+
+###Grammar
+
+``` cpp
+//namespace, allow 0 or more
+(namespace {name_space};)
+
+//user define class, allow 0 or more
+(
+(@description="{description_str}")
+class {class_name}{
+	@jsonname={json_filed_name}(,description="{description_str}", optional=["true","false"], default="{default_value_str}")
+	[field_type] {field_name}; 
+};
+)
+ 
+ //interface, allow 1 or more
+(@description="{description_str}")
+Interface {interface_name}{
+	//request, must have only 1 for every interface
+	Request{
+		@jsonname={json_filed_name}(,description="{description_str}", optional=["true","false"], default="{default_value_str}")
+		[field_type] {field_name} (optional); 
+	};
+	
+	//response, must have only 1 for every interface
+	Response{
+		@jsonname={json_filed_name}(,description="{description_str}", optional=["true","false"], default="{default_value_str}")
+		[field_type] {field_name} (optional); 
+	};
+};
+
+
+```
+####Conventions：
+1. **()** means the grammar token is optional, it can be defined 0 or 1
+2. **{}** means variable name
+3. **@** means comments
+4. **[]** means specified value of the set
+
+####Details：
+0. **{name_space}** means C++ style namespace
+1. **{class_name}**, **{interface_name}**, **{field_name}**, **{json_filed_name}** means self-defined struct/class, Interface, Field Name, JSON Field name. They can be any valid string
+2. User can define 1 or more **class**, the definitation sequence should follow the C++ style
+3. User can define 1 or more **Interface**，each Interface MUST have a pair of request/response objects
+4. **@** means comments，now it supports **jsonname**, **description**, **optional**, **default** key-words:
+
+	|Key-Word| Description |
+	|:------:| :---------------: |
+	|jsonname| JSON Field Name [It MUST be specified] |
+	|description| It will be generated into C++ code for comments [Optional]|
+	|optional|Specifies the JSON field is optional，value should be "true" or "false"，default is"false" [Optional]|
+	|default|Specifies the default value of C++ member feild [Optional]|
+	
+6. **[field_type]** Filed Type. Now supporting *short*, *int*, *bool*, *uint32_t*, *uint64_t*, *int64_t*, *double*, self-define class *T* and *vector<**T**>*.
+
+7. Supports C++ sytle comments like ```//comments``` and ```/*comments*/``` , the commots will be ignored when being parsing.
+
