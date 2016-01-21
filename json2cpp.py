@@ -1210,18 +1210,17 @@ def parse_namespace(token, base_dir):
 def parse_class(class_token):
     classField = Class()
     class_token_len = len(class_token)
-
     # class description
     description_dis = 0
     if type(class_token[0]) != list:
         if class_token[0] != "class":
             print "[error] Parsing Class token failed: class key word not found!"
-        description_dis = 1
     else:
         classField.description = parse_description(class_token[0])
+        description_dis = 1
 
     # class name
-    class_name = class_token[description_dis + 2]
+    class_name = class_token[description_dis + 1]
     if type(class_name) != str:
         print u"[error]class name <" + class_name + u">should be str type, but now: " + type(class_name)
         return
@@ -1299,7 +1298,7 @@ def parse_key_value_field(keyvalue_tokens):
 def parse_to_key_value_field_arrays(tokens):
     key_value = {"jsonname": ""}
     for m in range(len(tokens)):
-        keyName = tokens[m][0];
+        keyName = tokens[m][0]
         if keyName == "jsonname":
             key_value["jsonname"] = parse_key_value_field(tokens[m])
         elif keyName == "description":
