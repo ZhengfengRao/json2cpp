@@ -17,7 +17,7 @@ JSON_API = ""
 JSON_API_RAPIDJSON = "rapidjson"
 JSON_API_JSONCPP = "jsoncpp"
 rapidjson_path = JSON_API_RAPIDJSON
-NORMAL_TYPE = ["short", "int", "long", "bool", "uint32_t", "uint64_t", "int64_t", "double"]
+NORMAL_TYPE = ["short", "int", "bool", "uint32_t", "uint64_t", "int64_t", "double"]
 current_time = time.strftime('%Y-%m-%d, %H:%M', time.localtime(time.time()))
 
 ######################################## file       template    ####################################
@@ -635,7 +635,7 @@ def construct_request_iter_marco_rapidjson(vec_type):
 
 def construct_request_iter_marco_jsoncpp(vec_type):
     # print "construct_request_iter_marco-->" + vec_type
-    normal_type = NORMAL_TYPE = ["string", "short", "int", "long", "bool", "uint32_t", "uint64_t", "int64_t", "double"]
+    normal_type = NORMAL_TYPE = ["string", "short", "int", "bool", "uint32_t", "uint64_t", "int64_t", "double"]
     common_str_head = "\tif(field.IsValueSet()) \\\n" \
                       "\t{ \\\n"
     common_str_foot = "\t\t\tjsonObject[field.GetName()].append(temp_value); \\\n" \
