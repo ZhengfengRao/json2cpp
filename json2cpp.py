@@ -17,7 +17,7 @@ JSON_API = ""
 JSON_API_RAPIDJSON = "rapidjson"
 JSON_API_JSONCPP = "jsoncpp"
 rapidjson_path = JSON_API_RAPIDJSON
-NORMAL_TYPE = ["short", "int", "long", "bool", "uint32_t", "uint64_t", "int64_t", "double"]
+NORMAL_TYPE = ["short", "int", "bool", "uint32_t", "uint64_t", "int64_t", "double"]
 current_time = time.strftime('%Y-%m-%d, %H:%M', time.localtime(time.time()))
 
 ######################################## file       template    ####################################
@@ -636,7 +636,7 @@ def construct_request_iter_marco_rapidjson(vec_type):
 
 def construct_request_iter_marco_jsoncpp(vec_type):
     # print "construct_request_iter_marco-->" + vec_type
-    normal_type = NORMAL_TYPE = ["string", "short", "int", "long", "bool", "uint32_t", "uint64_t", "int64_t", "double"]
+    normal_type = NORMAL_TYPE = ["string", "short", "int", "bool", "uint32_t", "uint64_t", "int64_t", "double"]
     common_str_head = "\tif(field.IsValueSet()) \\\n" \
                       "\t{ \\\n"
     common_str_foot = "\t\t\tjsonObject[field.GetName()].append(temp_value); \\\n" \
@@ -1211,18 +1211,17 @@ def parse_namespace(token, base_dir):
 def parse_class(class_token):
     classField = Class()
     class_token_len = len(class_token)
-
     # class description
     description_dis = 0
     if type(class_token[0]) != list:
         if class_token[0] != "class":
             print "[error] Parsing Class token failed: class key word not found!"
-        description_dis = 1
     else:
         classField.description = parse_description(class_token[0])
+        description_dis = 1
 
     # class name
-    class_name = class_token[description_dis + 2]
+    class_name = class_token[description_dis + 1]
     if type(class_name) != str:
         print u"[error] class name <" + class_name + u">should be str type, but now: " + type(class_name)
         return
@@ -1230,7 +1229,7 @@ def parse_class(class_token):
 
     # class fields
     for i in range(class_token_len):
-        if i <= description_dis + 2:
+        if i <= description_dis + 1:
             # class keyword & class name
             pass
         else:
@@ -1300,7 +1299,7 @@ def parse_key_value_field(keyvalue_tokens):
 def parse_to_key_value_field_arrays(tokens):
     key_value = {"jsonname": ""}
     for m in range(len(tokens)):
-        keyName = tokens[m][0];
+        keyName = tokens[m][0]
         if keyName == "jsonname":
             key_value["jsonname"] = parse_key_value_field(tokens[m])
         elif keyName == "description":
