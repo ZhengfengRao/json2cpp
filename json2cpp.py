@@ -1221,7 +1221,6 @@ def parse_class(class_token):
 
     # class name
     class_name = class_token[description_dis + 1]
-    print class_name
     if type(class_name) != str:
         print u"[error]class name <" + class_name + u">should be str type, but now: " + type(class_name)
         return
