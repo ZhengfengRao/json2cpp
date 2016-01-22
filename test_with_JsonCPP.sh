@@ -13,5 +13,6 @@ cd ..
 ./json2cpp.py jsoncpp sample.jsf test
 cd test/test/
 cp ../Makefile.jsoncpp ./Makefile
+make clean
 make
 ./test
