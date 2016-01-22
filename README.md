@@ -194,15 +194,14 @@ Outputs in *dir_test* path is organized by the namespace defined in *sample.jsf*
 dir_test
 ├── jsf
      ├── AddInvoice.h
-     ├── AddWare.h
      ├── Address.h
      ├── InvoiceTicket.h
      ├── json2cpp.h
      ├── base.h
      ├── macro.h
      └── rapidjson
-                ├──
-                 ......
+            ├── ......
+          ......
 ```
 
 ###Class Usage
@@ -326,8 +325,8 @@ Interface {interface_name}{
 	|description| It will be generated into C++ code for comments [Optional]|
 	|optional|Specifies the JSON field is optional，value should be "true" or "false"，default is"false" [Optional]|
 	|default|Specifies the default value of C++ member feild [Optional]|
-	
-6. **[field_type]** Filed Type. Now supporting *short*, *int*, *bool*, *uint32_t*, *uint64_t*, *int64_t*, *double*, self-define class *T* and *vector<**T**>*.
 
-7. Supports C++ sytle comments like ```//comments``` and ```/*comments*/``` , the commots will be ignored when being parsing.
+5. **[field_type]** Filed Type. Now supporting *short*, *int*, *bool*, *uint32_t*, *uint64_t*, *int64_t*, *double*, self-define class *T* and *vector<**T**>*.
+
+6. Supports C++ sytle comments like ```//comments``` and ```/*comments*/``` , the commots will be ignored when being parsing.
 
