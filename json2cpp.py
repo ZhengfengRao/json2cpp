@@ -239,7 +239,7 @@ def build_BASE_H_FROMJSON(jsonAPI):
     if jsonAPI == JSON_API_RAPIDJSON:
         base_h_str = '''
         rapidjson::Document doc;
-        if(doc.Parse<0>(strJson.c_str()).HasParseError() || !doc.IsObject())
+        if(doc.Parse<0>(strJson.c_str()).HasParseError())
         {
             dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
             m_JSFCode.SetValue(dwRet);
@@ -456,15 +456,17 @@ TOJSON_HEADER = '''     virtual uint32_t ToJson(std::string& strJson, std::strin
         }
 '''
 
-def build_TOJSON_HEADER(jsonAPI):
+def build_TOJSON_HEADER(jsonAPI, isArrayOnly):
     tojson_header = TOJSON_HEADER
     if jsonAPI == JSON_API_RAPIDJSON:
         tojson_header += '''
         rapidjson::Document doc;
         rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
-        rapidjson::Value root(rapidjson::kObjectType);
-
         '''
+        if isArrayOnly:
+            tojson_header += "rapidjson::Value root(rapidjson::kArrayType);\n\n"
+        else:
+            tojson_header += "rapidjson::Value root(rapidjson::kObjectType);\n\n"
     elif jsonAPI == JSON_API_JSONCPP:
         tojson_header += '''
         Json::Value root;
@@ -530,7 +532,7 @@ def build_FROMJSON_HEADER(jsonAPI):
     if jsonAPI == JSON_API_RAPIDJSON:
         fromjson_header += '''
         rapidjson::Document doc;
-        if(doc.Parse<0>(strJson.c_str()).HasParseError() || !doc.IsObject())
+        if(doc.Parse<0>(strJson.c_str()).HasParseError())
         {
             dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
             m_JSFCode.SetValue(dwRet);
@@ -580,23 +582,39 @@ request_iter_marcos_file = {"": ""}
 response_iter_marcos = {"": ""}
 response_iter_marcos_file = {"": ""}
 
+request_iter_marcos_array_only = {"": ""}
+request_iter_marcos_file_array_only = {"": ""}
+response_iter_marcos_array_only = {"": ""}
+response_iter_marcos_file_array_only = {"": ""}
+
+
 response_number_marcos = {"": ""}
 response_number_marcos_file = {"": ""}
 
 
-def construct_request_iter_marco_rapidjson(vec_type):
+def construct_request_iter_marco_rapidjson(vec_type, isArrayOnly):
     # print "construct_request_iter_marco-->" + vec_type
     normal_type = NORMAL_TYPE
-    common_str_head = "\tif(field.IsValueSet()) \\\n" \
-                      "\t{ \\\n" \
-                      "\t\trapidjson::Value value(rapidjson::kArrayType); \\\n"
-    common_str_foot = "\t\tjsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \\\n" \
-                      "\t}\n\n"
+    if isArrayOnly:
+        common_str_head = "\tif(field.IsValueSet()) \\\n" \
+                          "\t{ \\\n" \
+                          "\t\trapidjson::Value& value = jsonObject; \\\n"
+        common_str_foot = "\t}\n\n"
+        request_macro_head = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
+                             "_ARRAY_ONLY(field, jsonObject, allocator) \\\n"
+    else:
+        common_str_head = "\tif(field.IsValueSet()) \\\n" \
+                          "\t{ \\\n" \
+                          "\t\trapidjson::Value value(rapidjson::kArrayType); \\\n"
+        common_str_foot = "\t\tjsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), value, allocator); \\\n" \
+                          "\t}\n\n"
+        request_macro_head = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
+                             "_ARRAY(field, jsonObject, allocator) \\\n"
 
+    request_macro = ""
     if vec_type in normal_type:    # Normal Type (Numbers)
         # print "Normal"
-        request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
-                "_ARRAY(field, jsonObject, allocator) \\\n" + \
+        request_macro = request_macro_head + \
                 common_str_head + \
                 "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n" \
                 "\t\t\tit != field.GetValue().end(); \\\n" \
@@ -607,8 +625,7 @@ def construct_request_iter_marco_rapidjson(vec_type):
                 common_str_foot
     elif vec_type == "string":
         # print "string"
-        request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
-                "_ARRAY(field, jsonObject, allocator) \\\n" + \
+        request_macro = request_macro_head + \
                 common_str_head + \
                 "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n" \
                 "\t\t\tit != field.GetValue().end(); \\\n" \
@@ -619,8 +636,7 @@ def construct_request_iter_marco_rapidjson(vec_type):
                 common_str_foot
     else:
         # print "Object"
-        request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
-                "_ARRAY(field, jsonObject, allocator) \\\n" + \
+        request_macro =  request_macro_head + \
                 common_str_head + \
                 "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n" \
                 "\t\t\tit != field.GetValue().end(); \\\n" \
@@ -631,22 +647,36 @@ def construct_request_iter_marco_rapidjson(vec_type):
                 "\t\t\tvalue.PushBack(objectValue, allocator); \\\n" \
                 "\t\t} \\\n" + \
                 common_str_foot
-    request_iter_marcos[vec_type] = "TOJSON_REQUEST_FIELD_" + vec_type.upper() + "_ARRAY"
+    if isArrayOnly:
+        request_iter_marcos_file_array_only[vec_type] = request_macro
+        request_iter_marcos_array_only[vec_type] = "TOJSON_REQUEST_FIELD_" + vec_type.upper() + "_ARRAY_ONLY"
+    else:
+        request_iter_marcos_file[vec_type] = request_macro
+        request_iter_marcos[vec_type] = "TOJSON_REQUEST_FIELD_" + vec_type.upper() + "_ARRAY"
 
 
-def construct_request_iter_marco_jsoncpp(vec_type):
+def construct_request_iter_marco_jsoncpp(vec_type, isArrayOnly):
     # print "construct_request_iter_marco-->" + vec_type
     normal_type = NORMAL_TYPE = ["string", "short", "int", "bool", "uint32_t", "uint64_t", "int64_t", "double"]
     common_str_head = "\tif(field.IsValueSet()) \\\n" \
                       "\t{ \\\n"
-    common_str_foot = "\t\t\tjsonObject[field.GetName()].append(temp_value); \\\n" \
-                      "\t\t} \\\n" \
-                      "\t}\n\n"
+    if isArrayOnly:
+        request_macro_head = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
+                             "_ARRAY_ONLY(field, jsonObject) \\\n"
+        common_str_foot = "\t\t\tjsonObject.append(temp_value); \\\n" \
+                          "\t\t} \\\n" \
+                          "\t}\n\n"
+    else:
+        request_macro_head = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
+                             "_ARRAY(field, jsonObject) \\\n"
+        common_str_foot = "\t\t\tjsonObject[field.GetName()].append(temp_value); \\\n" \
+                          "\t\t} \\\n" \
+                          "\t}\n\n"
 
+    request_macro = ""
     if vec_type in normal_type:    # Normal Type (Bool, Numbers, String)
         # print "Normal"
-        request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
-                "_ARRAY(field, jsonObject) \\\n" + \
+        request_macro = request_macro_head + \
                 common_str_head + \
                 "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n" \
                 "\t\t\tit != field.GetValue().end(); \\\n" \
@@ -656,8 +686,7 @@ def construct_request_iter_marco_jsoncpp(vec_type):
                 common_str_foot
     else:
         # print "Object"
-        request_iter_marcos_file[vec_type] = "#define TOJSON_REQUEST_FIELD_" + vec_type.upper() + \
-                "_ARRAY(field, jsonObject) \\\n" + \
+        request_macro = request_macro_head + \
                 common_str_head + \
                 "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n" \
                 "\t\t\tit != field.GetValue().end(); \\\n" \
@@ -666,32 +695,50 @@ def construct_request_iter_marco_jsoncpp(vec_type):
                 "\t\t\tJson::Value temp_value; \\\n" \
                 "\t\t\tit->ToJson(temp_value); \\\n" + \
                 common_str_foot
-    request_iter_marcos[vec_type] = "TOJSON_REQUEST_FIELD_" + vec_type.upper() + "_ARRAY"
+    if isArrayOnly:
+        request_iter_marcos_file_array_only[vec_type] = request_macro
+        request_iter_marcos_array_only[vec_type] = "TOJSON_REQUEST_FIELD_" + vec_type.upper() + "_ARRAY_ONLY"
+    else:
+        request_iter_marcos_file[vec_type] = request_macro
+        request_iter_marcos[vec_type] = "TOJSON_REQUEST_FIELD_" + vec_type.upper() + "_ARRAY"
 
 
-def construct_request_iter_marco(jsonAPI, vector_type):
+def construct_request_iter_marco(jsonAPI, vector_type, isArrayOnly):
     if jsonAPI == JSON_API_RAPIDJSON:
-        return construct_request_iter_marco_rapidjson(vector_type)
+        return construct_request_iter_marco_rapidjson(vector_type, isArrayOnly)
     elif jsonAPI == JSON_API_JSONCPP:
-        return construct_request_iter_marco_jsoncpp(vector_type)
+        return construct_request_iter_marco_jsoncpp(vector_type, isArrayOnly)
     else:
         return ""
 
 
-def construct_response_iter_marco_rapidjson(vec_type):
+def construct_response_iter_marco_rapidjson(vec_type, isArrayOnly):
     # print "construct_request_iter_marco-->" + vec_type
     normal_type = NORMAL_TYPE
-    common_str_head = "\tif(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()]." \
-                      "IsArray()) \\\n" \
-                      "\t{ \\\n"
-    iter_c_str_head = "\t\tconst rapidjson::Value& val = values[field.GetName().c_str()]; \\\n" \
-                      "\t\tfor (rapidjson::Value::ConstValueIterator itr = val.Begin(); itr != val.End(); ++itr) \\\n" \
-                      "\t\t{ \\\n"
-    iter_c_str_foot = "\t\t} \\\n"
 
+    if isArrayOnly:
+        response_macro_head = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
+                              "_ARRAY_ONLY(values, field) \\\n"
+        common_str_head = "\tif(values.IsArray()) \\\n" \
+                          "\t{ \\\n"
+        iter_c_str_head = "\t\tconst rapidjson::Value& val = values; \\\n" \
+                          "\t\tfor (rapidjson::Value::ConstValueIterator itr = val.Begin(); itr != val.End(); ++itr) \\\n" \
+                          "\t\t{ \\\n"
+    else:
+        response_macro_head = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
+                              "_ARRAY(values, field) \\\n"
+        common_str_head = "\tif(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()]." \
+                          "IsArray()) \\\n" \
+                          "\t{ \\\n"
+        iter_c_str_head = "\t\tconst rapidjson::Value& val = values[field.GetName().c_str()]; \\\n" \
+                          "\t\tfor (rapidjson::Value::ConstValueIterator itr = val.Begin(); itr != val.End(); ++itr) \\\n" \
+                          "\t\t{ \\\n"
+
+    iter_c_str_foot = "\t\t} \\\n"
     common_str_foot = "\t\tfield.SetValue(vec); \\\n" \
                       "\t}\n\n"
 
+    response_macro = ""
     if vec_type in normal_type:    # Normal Type (Numbers)
         # print "Normal"
         type_vec_push = ""
@@ -707,8 +754,7 @@ def construct_response_iter_marco_rapidjson(vec_type):
             type_vec_push = "\t\t\tvec.push_back(itr->GetUint64()); \\\n"
         if vec_type == "int64_t":
             type_vec_push = "\t\t\tvec.push_back(itr->GetInt64()); \\\n"
-        response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
-                "_ARRAY(values, field) \\\n" + \
+        response_macro = response_macro_head + \
                 common_str_head + \
                 "\t\tvector<" + vec_type + "> vec; \\\n" + \
                 iter_c_str_head + \
@@ -718,8 +764,7 @@ def construct_response_iter_marco_rapidjson(vec_type):
 
     elif vec_type == "string":
         # print "string"
-        response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
-                "_ARRAY(values, field) \\\n" + \
+        response_macro = response_macro_head + \
                 common_str_head + \
                 "\t\tvector<" + vec_type + "> vec; \\\n" + \
                 iter_c_str_head + \
@@ -728,8 +773,7 @@ def construct_response_iter_marco_rapidjson(vec_type):
                 common_str_foot
     else:
         # print "Object"
-        response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
-                "_ARRAY(values, field) \\\n" + \
+        response_macro = response_macro_head + \
                 common_str_head + \
                 "\t\tvector<" + vec_type + "> vec; \\\n" + \
                 iter_c_str_head + \
@@ -738,22 +782,40 @@ def construct_response_iter_marco_rapidjson(vec_type):
                 "\t\t\tvec.push_back(typeVar); \\\n" + \
                 iter_c_str_foot + \
                 common_str_foot
-    response_iter_marcos[vec_type] = "FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + "_ARRAY"
+    if isArrayOnly:
+        response_iter_marcos_file_array_only[vec_type] = response_macro
+        response_iter_marcos_array_only[vec_type] = "FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + "_ARRAY_ONLY"
+    else:
+        response_iter_marcos_file[vec_type] = response_macro
+        response_iter_marcos[vec_type] = "FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + "_ARRAY"
 
 
-def construct_response_iter_marco_jsoncpp(vec_type):
+def construct_response_iter_marco_jsoncpp(vec_type, isArrayOnly):
     # print "construct_request_iter_marco-->" + vec_type
     normal_type = NORMAL_TYPE
-    common_str_head = "\tif(values.isMember(field.GetName()) && values[field.GetName()].isArray()) \\\n" \
-                      "\t{ \\\n"
-    iter_c_str_head = "\t\tconst Json::Value& valArray = values[field.GetName()]; \\\n" \
-                      "\t\tfor (int i = 0; i < valArray.size(); i++) \\\n" \
-                      "\t\t{ \\\n"
-    iter_c_str_foot = "\t\t} \\\n"
 
+    if isArrayOnly:
+        response_macro_head = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
+                              "_ARRAY_ONLY(values, field) \\\n"
+        common_str_head = "\tif(values.isArray()) \\\n" \
+                          "\t{ \\\n"
+        iter_c_str_head = "\t\tconst Json::Value& valArray = values; \\\n" \
+                          "\t\tfor (int i = 0; i < valArray.size(); i++) \\\n" \
+                          "\t\t{ \\\n"
+    else:
+        response_macro_head = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
+                              "_ARRAY(values, field) \\\n"
+        common_str_head = "\tif(values.isMember(field.GetName()) && values[field.GetName()].isArray()) \\\n" \
+                          "\t{ \\\n"
+        iter_c_str_head = "\t\tconst Json::Value& valArray = values[field.GetName()]; \\\n" \
+                          "\t\tfor (int i = 0; i < valArray.size(); i++) \\\n" \
+                          "\t\t{ \\\n"
+
+    iter_c_str_foot = "\t\t} \\\n"
     common_str_foot = "\t\tfield.SetValue(vec); \\\n" \
                       "\t}\n\n"
 
+    response_macro = ""
     if vec_type in normal_type:    # Normal Type (Numbers)
         # print "Normal"
         type_vec_push = ""
@@ -769,8 +831,7 @@ def construct_response_iter_marco_jsoncpp(vec_type):
             type_vec_push = "\t\t\tvec.push_back(val.asUInt64()); \\\n"
         if vec_type == "int64_t":
             type_vec_push = "\t\t\tvec.push_back(val.asInt64()); \\\n"
-        response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
-                "_ARRAY(values, field) \\\n" + \
+        response_macro = response_macro_head + \
                 common_str_head + \
                 "\t\tvector<" + vec_type + "> vec; \\\n" + \
                 iter_c_str_head + \
@@ -780,8 +841,7 @@ def construct_response_iter_marco_jsoncpp(vec_type):
 
     elif vec_type == "string":
         # print "string"
-        response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
-                "_ARRAY(values, field) \\\n" + \
+        response_macro = response_macro_head + \
                 common_str_head + \
                 "\t\tvector<" + vec_type + "> vec; \\\n" + \
                 iter_c_str_head + \
@@ -791,8 +851,7 @@ def construct_response_iter_marco_jsoncpp(vec_type):
                 common_str_foot
     else:
         # print "Object"
-        response_iter_marcos_file[vec_type] = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
-                "_ARRAY(values, field) \\\n" + \
+        response_macro = response_macro_head + \
                 common_str_head + \
                 "\t\tvector<" + vec_type + "> vec; \\\n" + \
                 iter_c_str_head + \
@@ -802,14 +861,19 @@ def construct_response_iter_marco_jsoncpp(vec_type):
                 "\t\t\tvec.push_back(typeVar); \\\n" + \
                 iter_c_str_foot + \
                 common_str_foot
-    response_iter_marcos[vec_type] = "FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + "_ARRAY"
+    if isArrayOnly:
+        response_iter_marcos_file_array_only[vec_type] = response_macro
+        response_iter_marcos_array_only[vec_type] = "FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + "_ARRAY_ONLY"
+    else:
+        response_iter_marcos_file[vec_type] = response_macro
+        response_iter_marcos[vec_type] = "FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + "_ARRAY"
 
 
-def construct_response_iter_marco(jsonAPI, vector_type):
+def construct_response_iter_marco(jsonAPI, vector_type, isArrayOnly):
     if jsonAPI == JSON_API_RAPIDJSON:
-        return construct_response_iter_marco_rapidjson(vector_type)
+        return construct_response_iter_marco_rapidjson(vector_type, isArrayOnly)
     if jsonAPI == JSON_API_JSONCPP:
-        return construct_response_iter_marco_jsoncpp(vector_type)
+        return construct_response_iter_marco_jsoncpp(vector_type, isArrayOnly)
     else:
         return ""
 
@@ -884,6 +948,7 @@ class Field:
         self.default = ""
         self.default_isset = 0
         self.optional = 0
+        self.is_array_only = False
 
     def is_valid(self):
         # return self.type != "" and self.name != "" and self.jsonname != ""
@@ -904,9 +969,16 @@ class Field:
         elif "vector" in self.type:
             vector_type = self.type
             vector_type = vector_type.strip("vector").strip("<").strip(">")
-            if vector_type not in request_iter_marcos:
-                construct_request_iter_marco(JSON_API, vector_type)
-            return request_iter_marcos[vector_type]
+            if self.jsonname == "":
+                isArrayOnly = True
+                if vector_type not in request_iter_marcos_array_only:
+                    construct_request_iter_marco(JSON_API, vector_type, isArrayOnly)
+                return request_iter_marcos_array_only[vector_type]
+            else:
+                isArrayOnly = False
+                if vector_type not in request_iter_marcos:
+                    construct_request_iter_marco(JSON_API, vector_type, isArrayOnly)
+                return request_iter_marcos[vector_type]
         else:
             return "TOJSON_REQUEST_FIELD_OBJECT"
 
@@ -920,9 +992,16 @@ class Field:
         elif "vector" in self.type:
             vector_type = self.type
             vector_type = vector_type.strip("vector").strip("<").strip(">")
-            if vector_type not in response_iter_marcos:
-                construct_response_iter_marco(JSON_API, vector_type)
-            return response_iter_marcos[vector_type]
+            if self.jsonname == "":
+                isArrayOnly = True
+                if vector_type not in response_iter_marcos_array_only:
+                    construct_response_iter_marco(JSON_API, vector_type, isArrayOnly)
+                return response_iter_marcos_array_only[vector_type]
+            else:
+                isArrayOnly = False
+                if vector_type not in response_iter_marcos:
+                    construct_response_iter_marco(JSON_API, vector_type, isArrayOnly)
+                return response_iter_marcos[vector_type]
         else:
             return "FROMJSON_RESPONSE_FIELD_OBJECT"
 
@@ -1007,12 +1086,22 @@ class FieldCollector:
                 str = str + "\t\tm_" + field.name + ".SetValue(" + isquoted + field.default.decode("gbk").encode("utf-8") + isquoted + ");\n"
         return str
 
+    def is_array_only(self):
+        for field in self.fields:
+            if field.is_array_only:
+                return True
+        return False
+
+
 class Request(FieldCollector):
     def dump_tojson(self):
         str = ""
         for field in self.fields:
             str += field.dump_tojson()
         return str
+
+    def dump_to_json_header(self):
+        return build_TOJSON_HEADER(JSON_API, self.is_array_only())
 
 
 class Response(FieldCollector):
@@ -1113,7 +1202,7 @@ class Interface:
             + self.request.dump_constructor() \
             + "\t}\n\n" \
             + "\t~" + self.name + "Request()\n\t{}\n\n" \
-            + build_TOJSON_HEADER(JSON_API) + "\n"\
+            + self.request.dump_to_json_header() \
             + self.request.dump_tojson()\
             + TOJSON_FOOTER + "\n"\
             + ISVALID_HEADER \
@@ -1363,11 +1452,14 @@ def parse_field(field_tokens):
         return
 
     key_values = parse_to_key_value_field_arrays(jsonname_field_tokens)
-    if key_values["jsonname"] == "":
-        print u"[error] jsonname field is NULL!"
-        print jsonname_field_tokens
-        return
+    # Allow jsonname to be "" for Array Only
+    # if key_values["jsonname"] == "":
+    #     print u"[error] jsonname field is NULL!"
+    #     print jsonname_field_tokens
+    #     return
     field.jsonname = key_values["jsonname"]
+    if field.jsonname == "":
+        field.is_array_only = True
 
     if "description" in key_values and key_values["description"] != "":
         field.description = key_values["description"]
@@ -1376,7 +1468,7 @@ def parse_field(field_tokens):
         field.optional = 1
 
     # if "default" in key_values and key_values["default"] != "":
-    if "default" in key_values :
+    if "default" in key_values:
         field.default = key_values["default"]
         field.default_isset = 1
 
@@ -1387,6 +1479,9 @@ def parse_field(field_tokens):
         print field_type_token
         return
     field.type = field_type_token
+    if field.jsonname == "" and "vector" not in field.type:
+        print u"[error] jsonname == \"\" only when type is vector! but now type is: " + field.type
+        exit(-1)
 
     # field name
     field_name_token = field_tokens[2]
@@ -1405,6 +1500,7 @@ def parse_field(field_tokens):
 def get_namespace_str():
     str = ""
     return str
+
 
 def write_file(file_name, content):
     print "Generating " + file_name + "..."
@@ -1428,6 +1524,10 @@ def generate_base(base_directory, class_objects):
         macros += request_iter_marcos_file[req_macros]
     for res_macros in response_iter_marcos_file:
         macros += response_iter_marcos_file[res_macros]
+    for req_macros_al in request_iter_marcos_file_array_only:
+        macros += request_iter_marcos_file_array_only[req_macros_al]
+    for res_macros_al in response_iter_marcos_file_array_only:
+        macros += response_iter_marcos_file_array_only[res_macros_al]
     for res_num_macros in response_number_marcos_file:
         macros += response_number_marcos_file[res_num_macros]
     macros += "\n#endif	/* JSON2CPP_MACRO_H */\n"
@@ -1465,6 +1565,7 @@ def generate_base(base_directory, class_objects):
 
 def generate_test(base_directory):
     pass
+
 
 #generate and interface(a type of class)
 def generate_class(base_directory, namespace, object):
