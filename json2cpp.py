@@ -1089,7 +1089,12 @@ class FieldCollector:
     def is_array_only(self):
         for field in self.fields:
             if field.is_array_only:
-                return True
+                if len(self.fields) == 1:
+                    return True
+                else:
+                    print "Request/Response anonymous Array (jsonname=\"\") MUST be defined once, now there are:" \
+                          + len(self.fields)
+                    exit(-1)
         return False
 
 
