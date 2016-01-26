@@ -158,7 +158,7 @@ Interface AddInvoice{
 
 @description="新增商品"			//接口说明
 Interface AddWare{
-	Request{
+	Request(Address){
 		@jsonname="sourceId", description="来源",default="100"
 		int source;
 
@@ -169,7 +169,7 @@ Interface AddWare{
 		vector<string> bussinessIds;
 	};
 
-	Response{
+	Response(Address){
 		@jsonname="code", description="业务返回代码",default="yy"
 		string code;
 
