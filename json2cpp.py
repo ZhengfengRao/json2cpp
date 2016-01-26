@@ -12,6 +12,7 @@ import time
 import codecs
 
 from pyparsing import *
+ParserElement.enablePackrat()
 
 JSON_API = ""
 JSON_API_RAPIDJSON = "rapidjson"
@@ -337,6 +338,13 @@ MACRO_H_BASE = '''/*
         return false;   \\
     }
 
+#define CHECK_FIELD_ISVALID_FATHER(father, strErrMsg) \\
+    if (!father::IsValid(strErrMsg)) \\
+        return false;
+
+#define FROMJSON_RESPONSE_FIELD_FATHER(values) \\
+    fromJson(values);
+
 '''
 
 MACRO_H_RAPIDJSON = '''
@@ -357,9 +365,12 @@ MACRO_H_RAPIDJSON = '''
     if(field.IsValueSet()) \\
     { \\
         rapidjson::Value objectValue(rapidjson::kObjectType); \\
-        field.GetValue().ToJson(objectValue, allocator); \\
+        field.GetValue().toJson(objectValue, allocator); \\
         jsonObject.AddMember(rapidjson::StringRef(field.GetName().c_str()), objectValue, allocator); \\
     }
+
+#define TOJSON_REQUEST_FIELD_FATHER(jsonObject, allocator) \\
+    toJson(jsonObject, allocator);
 
 #define FROMJSON_RESPONSE_FIELD_STRING(values, field) \\
     if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsString()) \\
@@ -371,7 +382,7 @@ MACRO_H_RAPIDJSON = '''
     if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsObject()) \\
     { \\
         const rapidjson::Value& val = values[field.GetName().c_str()]; \\
-        field.GetValue().FromJson(val); \\
+        field.GetValue().fromJson(val); \\
         field.SetValue(field.GetValue()); \\
     }
 
@@ -401,9 +412,12 @@ MACRO_H_JSONCPP = '''
     if(field.IsValueSet()) \\
     { \\
         Json::Value object; \\
-        field.GetValue().ToJson(object); \\
+        field.GetValue().toJson(object); \\
         jsonObject[field.GetName()] = object; \\
     }
+
+#define TOJSON_REQUEST_FIELD_FATHER(jsonObject) \\
+    toJson(jsonObject);
 
 #define FROMJSON_RESPONSE_FIELD_STRING(values, field) \\
     if(values.isMember(field.GetName()) && values[field.GetName()].isString()) \\
@@ -415,7 +429,7 @@ MACRO_H_JSONCPP = '''
     if(values.isMember(field.GetName()) && values[field.GetName()].isObject()) \\
     { \\
         const Json::Value& val = values[field.GetName()]; \\
-        field.GetValue().FromJson(val); \\
+        field.GetValue().fromJson(val); \\
         field.SetValue(field.GetValue()); \\
     }
 
@@ -435,11 +449,11 @@ def build_MACRO_H_BASE(jsonAPI):
     return macro_h
 
 
-CLASS_TOJSON_HEADER_RAPIDJSON = '''	void ToJson(rapidjson::Value& root, rapidjson::Document::AllocatorType& allocator) const
+CLASS_TOJSON_HEADER_RAPIDJSON = '''	void toJson(rapidjson::Value& root, rapidjson::Document::AllocatorType& allocator) const
     {
 '''
 
-CLASS_TOJSON_HEADER_JSONCPP = '''	void ToJson(Json::Value& root) const
+CLASS_TOJSON_HEADER_JSONCPP = '''	void toJson(Json::Value& root) const
     {
 '''
 
@@ -456,7 +470,8 @@ TOJSON_HEADER = '''     virtual uint32_t ToJson(std::string& strJson, std::strin
         }
 '''
 
-def build_TOJSON_HEADER(jsonAPI, isArrayOnly):
+
+def build_TOJSON_HEADER(jsonAPI, isArrayOnly, hasFather):
     tojson_header = TOJSON_HEADER
     if jsonAPI == JSON_API_RAPIDJSON:
         tojson_header += '''
@@ -467,10 +482,16 @@ def build_TOJSON_HEADER(jsonAPI, isArrayOnly):
             tojson_header += "rapidjson::Value root(rapidjson::kArrayType);\n\n"
         else:
             tojson_header += "rapidjson::Value root(rapidjson::kObjectType);\n\n"
+        if hasFather:
+            tojson_header += "\t\tTOJSON_REQUEST_FIELD_FATHER(root, allocator)\n"
     elif jsonAPI == JSON_API_JSONCPP:
         tojson_header += '''
         Json::Value root;
-        '''
+
+'''
+        if hasFather:
+            tojson_header += "\t\tTOJSON_REQUEST_FIELD_FATHER(root)\n"
+
     return tojson_header
 
 TOJSON_FOOTER = '''
@@ -496,17 +517,16 @@ RESPONSE_INVALID_HEADER = '''       if(!IResponse::IsValid(strErrMsg))
 
 INIT_HEADER = '''   virtual void Init()
     {
-        IResponse::Init();
 '''
 
 INIT_FOOTER = '''   }
 '''
 
-CLASS_FROMJSON_HEADER_RAPIDJSON = '''    void FromJson(const rapidjson::Value& values)
+CLASS_FROMJSON_HEADER_RAPIDJSON = '''    void fromJson(const rapidjson::Value& values)
     {
 '''
 
-CLASS_FROMJSON_HEADER_JSONCPP = '''    void FromJson(const Json::Value& values)
+CLASS_FROMJSON_HEADER_JSONCPP = '''    void fromJson(const Json::Value& values)
     {
 '''
 
@@ -527,7 +547,7 @@ FROMJSON_HEADER = '''   virtual uint32_t FromJson(const std::string& strJson, in
 '''
 
 
-def build_FROMJSON_HEADER(jsonAPI):
+def build_FROMJSON_HEADER(jsonAPI, has_father):
     fromjson_header = FROMJSON_HEADER
     if jsonAPI == JSON_API_RAPIDJSON:
         fromjson_header += '''
@@ -558,6 +578,8 @@ def build_FROMJSON_HEADER(jsonAPI):
             const Json::Value& values = jsonResult;
 
 '''
+    if has_father:
+        fromjson_header += "\t\t\tFROMJSON_RESPONSE_FIELD_FATHER(values);\n"
     return fromjson_header
 
 
@@ -643,7 +665,7 @@ def construct_request_iter_marco_rapidjson(vec_type, isArrayOnly):
                 "\t\t\tit++) \\\n" \
                 "\t\t{ \\\n" \
                 "\t\t\trapidjson::Value objectValue(rapidjson::kObjectType); \\\n" \
-                "\t\t\tit->ToJson(objectValue, allocator); \\\n" \
+                "\t\t\tit->toJson(objectValue, allocator); \\\n" \
                 "\t\t\tvalue.PushBack(objectValue, allocator); \\\n" \
                 "\t\t} \\\n" + \
                 common_str_foot
@@ -693,7 +715,7 @@ def construct_request_iter_marco_jsoncpp(vec_type, isArrayOnly):
                 "\t\t\tit++) \\\n" \
                 "\t\t{ \\\n" \
                 "\t\t\tJson::Value temp_value; \\\n" \
-                "\t\t\tit->ToJson(temp_value); \\\n" + \
+                "\t\t\tit->toJson(temp_value); \\\n" + \
                 common_str_foot
     if isArrayOnly:
         request_iter_marcos_file_array_only[vec_type] = request_macro
@@ -778,7 +800,7 @@ def construct_response_iter_marco_rapidjson(vec_type, isArrayOnly):
                 "\t\tvector<" + vec_type + "> vec; \\\n" + \
                 iter_c_str_head + \
                 "\t\t\t" + vec_type + " typeVar; \\\n" + \
-                "\t\t\ttypeVar.FromJson(*itr); \\\n" + \
+                "\t\t\ttypeVar.fromJson(*itr); \\\n" + \
                 "\t\t\tvec.push_back(typeVar); \\\n" + \
                 iter_c_str_foot + \
                 common_str_foot
@@ -857,7 +879,7 @@ def construct_response_iter_marco_jsoncpp(vec_type, isArrayOnly):
                 iter_c_str_head + \
                 "\t\t\tconst Json::Value& val = valArray[i]; \\\n" + \
                 "\t\t\t" + vec_type + " typeVar; \\\n" + \
-                "\t\t\ttypeVar.FromJson(val); \\\n" + \
+                "\t\t\ttypeVar.fromJson(val); \\\n" + \
                 "\t\t\tvec.push_back(typeVar); \\\n" + \
                 iter_c_str_foot + \
                 common_str_foot
@@ -1050,6 +1072,7 @@ class Field:
 class FieldCollector:
     def __init__(self):
         self.fields = []
+        self.father = ""
 
     def is_valid(self):
         if len(self.fields) == 0:
@@ -1077,6 +1100,14 @@ class FieldCollector:
         for field in self.fields:
             str += field.dump_isvalid()
         return str
+
+    def dump_init(self):
+        init_str = ""
+        for field in self.fields:
+            init_str += field.dump_init()
+        init_str += "\n"
+        init_str += self.dump_constructor()
+        return init_str
 
     def dump_constructor(self):
         str = u""
@@ -1106,7 +1137,36 @@ class Request(FieldCollector):
         return str
 
     def dump_to_json_header(self):
-        return build_TOJSON_HEADER(JSON_API, self.is_array_only())
+        return build_TOJSON_HEADER(JSON_API, self.is_array_only(), self.father != "")
+
+    def dump_to_json_func(self):
+        to_json_str = self.dump_to_json_header() \
+                    + self.dump_tojson() \
+                    + TOJSON_FOOTER + "\n"
+        return to_json_str
+
+    def dump_request_class_header(self, interface_name):
+        header = "class " + interface_name + "Request: public IRequest"
+        if self.father != "":
+            header = header + ", public " + self.father
+        header += "\n{\n"
+        return header
+
+    def dump_constructor_header(self, interface_name):
+        header = "\npublic:\n" + \
+                 "\t" + interface_name + "Request()\n" + \
+                 "\t\t:IRequest()"
+        if self.father != "":
+            header = header + ", " + self.father + "()"
+        header += "\n"
+        return header
+
+    def dump_request_is_valid(self):
+        is_valid_str = ISVALID_HEADER
+        if self.father != "":
+            is_valid_str = is_valid_str + "\t\tCHECK_FIELD_ISVALID_FATHER(" + self.father + ", strErrMsg);\n"
+        is_valid_str = is_valid_str + self.dump_isvalid() + ISVALID_FOOTER
+        return is_valid_str
 
 
 class Response(FieldCollector):
@@ -1116,14 +1176,41 @@ class Response(FieldCollector):
             str += field.dump_fromjson()
         return str
 
-    def dump_init(self):
-        str = ""
-        for field in self.fields:
-            str += field.dump_init()
+    def dump_response_class_header(self, interface_name):
+        header = "class " + interface_name + "Response: public IResponse"
+        if self.father != "":
+            header = header + ", public " + self.father
+        header += "\n{\n"
+        return header
 
-        str += "\n"
-        str += self.dump_constructor()
-        return str
+    def dump_constructor_header(self, interface_name):
+        header = "\npublic:\n" + \
+                 "\t" + interface_name + "Response()\n" + \
+                 "\t\t:IResponse()"
+        if self.father != "":
+            header = header + ", " + self.father + "()"
+        header += "\n"
+        return header
+
+    def dump_init_func(self):
+        init_str = INIT_HEADER + "\t\tIResponse::Init();\n\n"
+        if self.father != "":
+            init_str = init_str + "\t\t" + self.father + "::Init();\n"
+        init_str = init_str + self.dump_init() + INIT_FOOTER + "\n"
+        return init_str
+
+    def dump_response_is_valid(self):
+        is_valid_str = ISVALID_HEADER + RESPONSE_INVALID_HEADER + "\n"
+        if self.father != "":
+            is_valid_str = is_valid_str + "\t\tCHECK_FIELD_ISVALID_FATHER(" + self.father + ", strErrMsg);\n"
+        is_valid_str = is_valid_str + self.dump_isvalid() + ISVALID_FOOTER
+        return is_valid_str
+
+    def dump_fromjson_func(self):
+        from_json_str = build_FROMJSON_HEADER(JSON_API, self.father != "") \
+                        + self.dump_fromjson() \
+                        + FROMJSON_FOOTER + "\n"
+        return from_json_str
 
 
 class Class(FieldCollector):
@@ -1159,8 +1246,15 @@ class Class(FieldCollector):
         from_json_method = class_fromjson_header \
             + str \
             + CLASS_FROMJSON_FOOTER
-
         return from_json_method
+
+    def dump_init_func(self):
+        init_str = INIT_HEADER
+        if self.father != "":
+            init_str = init_str + "\t\t" + self.father + "::Init();\n"
+        init_str = init_str + self.dump_init() \
+                + INIT_FOOTER + "\n"
+        return init_str
 
     @property
     def dump(self):
@@ -1176,9 +1270,13 @@ class Class(FieldCollector):
             + "\t{\n" \
             + self.dump_constructor() \
             + "\t}\n\n" \
-            + "\t~" + self.name + "(){}\n\n" \
+            + "\tvirtual ~" + self.name + "(){}\n\n" \
             + self.dump_to_json() \
             + self.dump_from_json() \
+            + ISVALID_HEADER \
+            + self.dump_isvalid() \
+            + ISVALID_FOOTER \
+            + self.dump_init_func() \
             + "};\n\n"
         return class_str
 
@@ -1197,44 +1295,29 @@ class Interface:
 
     @property
     def dump(self):
-        request_str = "class " + self.name + "Request: public IRequest\n{\n" \
+        request_str = self.request.dump_request_class_header(self.name) \
             + self.request.dump_declaration() \
-            + "\npublic:\n" \
-            + "\t" + self.name + "Request()\n" \
-            + "\t\t:IRequest()\n" \
+            + self.request.dump_constructor_header(self.name) \
             + self.request.dump_initialize_list() \
             + "\t{\n" \
             + self.request.dump_constructor() \
             + "\t}\n\n" \
-            + "\t~" + self.name + "Request()\n\t{}\n\n" \
-            + self.request.dump_to_json_header() \
-            + self.request.dump_tojson()\
-            + TOJSON_FOOTER + "\n"\
-            + ISVALID_HEADER \
-            + self.request.dump_isvalid() \
-            + ISVALID_FOOTER \
+            + "\tvirtual ~" + self.name + "Request()\n\t{}\n\n" \
+            + self.request.dump_to_json_func() \
+            + self.request.dump_request_is_valid() \
             + "};"
 
-        response_str = "class " + self.name + "Response: public IResponse\n{\n" \
+        response_str = self.response.dump_response_class_header(self.name) \
             + self.response.dump_declaration() \
-            + "\npublic:\n" \
-            + "\t" + self.name + "Response()\n" \
-            + "\t\t:IResponse()\n" \
+            + self.response.dump_constructor_header(self.name) \
             + self.response.dump_initialize_list() \
             + "\t{\n" \
             + self.response.dump_constructor() \
             + "\t}\n\n" \
-            + "\t~" + self.name + "Response()\n\t{}\n\n" \
-            + INIT_HEADER + "\n" \
-            + self.response.dump_init() \
-            + INIT_FOOTER + "\n" \
-            + build_FROMJSON_HEADER(JSON_API) \
-            + self.response.dump_fromjson() \
-            + FROMJSON_FOOTER + "\n"\
-            + ISVALID_HEADER \
-            + RESPONSE_INVALID_HEADER + "\n"\
-            + self.response.dump_isvalid() \
-            + ISVALID_FOOTER \
+            + "\tvirtual ~" + self.name + "Response()\n\t{}\n\n" \
+            + self.response.dump_init_func() \
+            + self.response.dump_fromjson_func() \
+            + self.response.dump_response_is_valid() \
             + "};"
 
         return request_str + "\n\n" + response_str
@@ -1249,21 +1332,23 @@ def key_value_field(keyName):
 def load_grammar():
     lbrace = Suppress("{")
     rbrace = Suppress("}")
+    lbracket = Suppress("(")
+    rbracket = Suppress(")")
     semicolon = Suppress(";")
     at = Suppress("@")
     comma = Suppress(",")
     equal = Suppress("=")
     nspace = Suppress("::")
     keyword = Word(alphanums + "_/")
-    interface_key = "Interface"
-    class_key = "class"
-    namespace_key = "namespace"
-    request_key = "Request"
-    response_key = "Response"
-    jsonname_key = "jsonname"
-    description_key = "description"
-    optional_key = "optional"
-    default_key = "default"
+    interface_key = Keyword("Interface")
+    class_key = Keyword("class")
+    namespace_key = Keyword("namespace")
+    request_key = Keyword("Request")
+    response_key = Keyword("Response")
+    jsonname_key = Keyword("jsonname")
+    description_key = Keyword("description")
+    optional_key = Keyword("optional")
+    default_key = Keyword("default")
 
     field_type = Word(alphanums + "_/<>")
     namespace = Group(namespace_key + keyword + ZeroOrMore(nspace + keyword) + semicolon)
@@ -1273,8 +1358,12 @@ def load_grammar():
                       + Optional(comma + key_value_field(optional_key)) \
                       + Optional(comma + key_value_field(default_key)))
     field = Group(comment + field_type + keyword + semicolon)
-    request = Group(request_key + lbrace + OneOrMore(field) + rbrace + semicolon)
-    response = Group(response_key + lbrace + OneOrMore(field) + rbrace + semicolon)
+    request_nal = Group(request_key + lbrace + OneOrMore(field) + rbrace + semicolon)
+    request_inh = Group(request_key + lbracket + field_type + rbracket + lbrace + ZeroOrMore(field) + rbrace + semicolon)
+    request = request_nal | request_inh
+    response_nal = Group(response_key + lbrace + OneOrMore(field) + rbrace + semicolon)
+    response_inh = Group(response_key + lbracket + field_type + rbracket + lbrace + ZeroOrMore(field) + rbrace + semicolon)
+    response = response_nal | response_inh
     interface = Group(Optional(description) \
         + interface_key + keyword + lbrace \
         + request \
@@ -1424,6 +1513,8 @@ def parse_request(request_tokens, object_type="request"):
         if i == 0:
             # request/response keyword
             pass
+        elif type(request_tokens[i]) == str and i == 1:
+            object.father = request_tokens[i]
         else:
             field = parse_field(request_tokens[i])
             if isinstance(field, Field) and field.is_valid():
@@ -1617,6 +1708,7 @@ def generate_files(jsonAPI, tokens, base_dir):
     # for token in tokens:
     for i in range(len(tokens)):
         token = tokens[i]
+        print token
         if (type(token[0]) == list and token[1] == "class") or token[0] == "class":
             class_object = parse_class(token)
             class_objects.append(class_object)
