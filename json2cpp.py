@@ -235,6 +235,7 @@ BASE_H_FOOTER = '''
 #endif	/* JSON2CPP_BASE_H */
 '''
 
+
 def build_BASE_H_FROMJSON(jsonAPI):
     base_h_str = ""
     if jsonAPI == JSON_API_RAPIDJSON:
@@ -583,7 +584,6 @@ def build_FROMJSON_HEADER(jsonAPI, has_father):
     return fromjson_header
 
 
-
 FROMJSON_FOOTER = '''
             std::string strError;
             if(!IsValid(strError))
@@ -658,7 +658,7 @@ def construct_request_iter_marco_rapidjson(vec_type, isArrayOnly):
                 common_str_foot
     else:
         # print "Object"
-        request_macro =  request_macro_head + \
+        request_macro = request_macro_head + \
                 common_str_head + \
                 "\t\tfor(std::vector<" + vec_type + ">::const_iterator it = field.GetValue().begin(); \\\n" \
                 "\t\t\tit != field.GetValue().end(); \\\n" \
