@@ -392,5 +392,5 @@ Interface AddWare{
 };
 ```
 #####Inheritance Grammar Explanation
-If ***(class_type)*** follows ***Request/Response***, the  Fields in Request/Response is optional (**ZeroOrMore**).
-If *Inheritance* is not used, Fields in Request/Response is **OneOrMore**
+* If ***(class_type)*** follows ***Request/Response***, the  Fields in Request/Response is optional (**ZeroOrMore**).
+* If *Inheritance* is not used, Fields in Request/Response is **OneOrMore**
