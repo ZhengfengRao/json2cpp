@@ -1693,7 +1693,7 @@ def generate_class(base_directory, namespace, object):
     write_file(base_directory + os.sep + object.name + ".h", content)
 
 
-def generate_files(jsonAPI, tokens, base_dir):
+def generate_files(tokens, base_dir):
     if type(tokens) != list or len(tokens) < 1:
         print u"[error] Invalid tokens. type:" + type(tokens) + ", len:" + len(tokens)
         print tokens
@@ -1785,5 +1785,5 @@ if __name__ == "__main__":
     JSON_API = parse_jsonapi(sys.argv)
     grammar = load_grammar()
     tokens = grammar.parseFile(file_path).asList()
-    generate_files(JSON_API, tokens, sys.argv[3])
+    generate_files(tokens, sys.argv[3])
     print current_time
