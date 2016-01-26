@@ -330,3 +330,67 @@ Interface {interface_name}{
 
 6. Supports C++ sytle comments like ```//comments``` and ```/*comments*/``` , the commots will be ignored when being parsing.
 
+####Anonymous Array
+json2cpp supports anonymous array Request/Response, like the following JSON string:
+``` json
+[
+    {
+        "provinceNo": 10002,
+        "provinceStr": "Beijing",
+    },
+    {
+        "provinceNo": 10003,
+        "provinceStr": "Hong Kong",
+    }
+]
+```
+This JSON string only contains an anonymous array of "*Address*", so the grammar is defined as following style:
+``` cpp
+@description="AddWare"
+Interface AddWare{
+	Request {
+		@jsonname="", description="Request Addresses"
+		vector<Address> addresses;
+	};
+	
+	Response {
+		.......
+	};
+```
+When Request/Respons is an anonymous array JSON string, the ***@jsonname*** MUST be defined as "" (null), and the Field should ONLY contains ONE AND ONLY ONE ***vector*** type class or normal type (e.g. vector<*Address*>, vector<*int*>).
+
+
+####Inheritance
+User can use defined Class to be inherited to *Request/Response*, which means user can reuse the definitation of a Class, put the fields of that class into Request/Response.
+For instance, ***Address*** has 2 fields: **{int, string}**. If the *Request* and *Response* are both required as a single ***Address*** Object (NOT an Object contains an Address). So the definitation file can be written as following:
+``` cpp
+// Tedious definitation:
+@description="AddWare"
+Interface AddWare{
+	Request {
+		@jsonname="provinceNo", description="Province ID" //@descpription is optional
+		int provinceNo;	
+	
+		@jsonname="provinceStr", description="Province"
+		string province;
+	};
+
+	Response {
+		@jsonname="provinceNo", description="Province ID" //@descpription is optional
+		int provinceNo;	
+	
+		@jsonname="provinceStr", description="Province"
+		string province;
+	};
+};
+
+// Can be simplified as following --->
+@description="AddWare"
+Interface AddWare{
+	Request(Address) {};
+	Response(Address){};
+};
+```
+#####Inheritance Grammar Explanation
+If ***(class_type)*** follows ***Request/Response***, the  Fields in Request/Response is optional (**ZeroOrMore**).
+If *Inheritance* is not used, Fields in Request/Response is **OneOrMore**
