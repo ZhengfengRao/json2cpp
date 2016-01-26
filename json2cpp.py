@@ -1708,7 +1708,7 @@ def generate_files(jsonAPI, tokens, base_dir):
     # for token in tokens:
     for i in range(len(tokens)):
         token = tokens[i]
-        print token
+        # print token
         if (type(token[0]) == list and token[1] == "class") or token[0] == "class":
             class_object = parse_class(token)
             class_objects.append(class_object)
