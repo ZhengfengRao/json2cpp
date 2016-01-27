@@ -1643,8 +1643,8 @@ def generate_base(base_directory, class_objects):
     if JSON_API == JSON_API_RAPIDJSON:
         # rapidjson library
         if not os.path.exists(rapidjson_path):
-            print u"[error] rapidjson lirary dose not exist." + os.path.abspath(rapidjson_path)
-            exit(-1)
+            print u"[Warning] rapidjson lirary dose not exist. Please download from https://github.com/miloyip/rapidjson"
+            return
         if not os.path.isdir(rapidjson_path):
             print u"[error] rapidjson path is not directory." + os.path.abspath(rapidjson_path)
             exit(-1)
