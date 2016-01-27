@@ -831,7 +831,8 @@ def construct_response_iter_marco_jsoncpp(vec_type, isArrayOnly):
                           "\t{ \\\n"
         iter_c_str_head = "\t\tconst Json::Value& valArray = values[field.GetName()]; \\\n" \
                           "\t\tfor (int i = 0; i < valArray.size(); i++) \\\n" \
-                          "\t\t{ \\\n"
+                          "\t\t{ \\\n" \
+                          "\t\t\tconst Json::Value& val = valArray[i]; \\\n"
 
     iter_c_str_foot = "\t\t} \\\n"
     common_str_foot = "\t\tfield.SetValue(vec); \\\n" \
@@ -867,7 +868,6 @@ def construct_response_iter_marco_jsoncpp(vec_type, isArrayOnly):
                 common_str_head + \
                 "\t\tvector<" + vec_type + "> vec; \\\n" + \
                 iter_c_str_head + \
-                "\t\t\tconst Json::Value& val = valArray[i]; \\\n" + \
                 "\t\t\tvec.push_back(val.asString()); \\\n" + \
                 iter_c_str_foot + \
                 common_str_foot
@@ -877,7 +877,6 @@ def construct_response_iter_marco_jsoncpp(vec_type, isArrayOnly):
                 common_str_head + \
                 "\t\tvector<" + vec_type + "> vec; \\\n" + \
                 iter_c_str_head + \
-                "\t\t\tconst Json::Value& val = valArray[i]; \\\n" + \
                 "\t\t\t" + vec_type + " typeVar; \\\n" + \
                 "\t\t\ttypeVar.fromJson(val); \\\n" + \
                 "\t\t\tvec.push_back(typeVar); \\\n" + \
