@@ -212,7 +212,6 @@ public:
             m_JSFMessage.SetValue("");
             return dwRet;
         }
-
 '''
 
 BASE_H_FOOTER = '''
@@ -462,7 +461,7 @@ CLASS_TOJSON_FOOTER = '''\t}
 
 '''
 
-TOJSON_HEADER = '''     virtual uint32_t ToJson(std::string& strJson, std::string& strErrMsg) const
+TOJSON_HEADER = '''    virtual uint32_t ToJson(std::string& strJson, std::string& strErrMsg) const
     {
         strJson = "";
         if(IsValid(strErrMsg) == false)
@@ -516,7 +515,7 @@ RESPONSE_INVALID_HEADER = '''       if(!IResponse::IsValid(strErrMsg))
         }
 '''
 
-INIT_HEADER = '''   virtual void Init()
+INIT_HEADER = '''    virtual void Init()
     {
 '''
 
@@ -535,7 +534,61 @@ CLASS_FROMJSON_FOOTER = '''\t}
 
 '''
 
-FROMJSON_HEADER = '''   virtual uint32_t FromJson(const std::string& strJson, int status)
+CLASS_FROMJSON_FUNC_HEADER = '''    virtual uint32_t FromJson(const std::string& strJson, string& strError)
+    {
+        uint32_t dwRet = ERR_OK;
+
+        Init();
+'''
+
+CLASS_FROMJSON_FUNC_FOOTER = '''
+            if(!IsValid(strError))
+            {
+                dwRet = ERR_RESPONSE_FIELD_NOT_SET;
+            }
+        }
+
+        return dwRet;
+    }
+
+'''
+
+
+def build_CLASS_FROMJSON_HEADER(jsonAPI):
+    fromjson_header = CLASS_FROMJSON_FUNC_HEADER
+    if jsonAPI == JSON_API_RAPIDJSON:
+        fromjson_header += '''
+        rapidjson::Document doc;
+        if(doc.Parse<0>(strJson.c_str()).HasParseError())
+        {
+            dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
+            strError = std::string("parse response failed. ") +  std::string(rapidjson::GetParseError_En(doc.GetParseError()));
+        }
+        else
+        {
+            const rapidjson::Value& values = doc;
+
+            this->fromJson(values);
+'''
+    elif jsonAPI == JSON_API_JSONCPP:
+        fromjson_header += '''
+        Json::Reader reader;
+        Json::Value jsonResult;
+        if (!reader.parse(strJson, jsonResult, false))
+        {
+            dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
+            strError = string("parse response failed. ") +  reader.getFormattedErrorMessages();
+        }
+        else
+        {
+            const Json::Value& values = jsonResult;
+
+            this->fromJson(values);
+'''
+    return fromjson_header + CLASS_FROMJSON_FUNC_FOOTER
+
+
+FROMJSON_HEADER = '''    virtual uint32_t FromJson(const std::string& strJson, int status)
     {
         uint32_t dwRet = ERR_OK;
 
@@ -1247,6 +1300,26 @@ class Class(FieldCollector):
             + CLASS_FROMJSON_FOOTER
         return from_json_method
 
+    def dump_to_json_header(self):
+        return build_TOJSON_HEADER(JSON_API, self.is_array_only(), self.father != "")
+
+    def dump_ToJson_body(self, jsonAPI):
+        body = ""
+        if jsonAPI == JSON_API_RAPIDJSON:
+            body = "\t\tthis->toJson(root, allocator);\n"
+        elif jsonAPI == JSON_API_JSONCPP:
+            body = "\t\tthis->toJson(root);\n"
+        return body
+
+    def dump_ToJson_func(self):
+        to_json_str = self.dump_to_json_header() \
+                    + self.dump_ToJson_body(JSON_API) \
+                    + TOJSON_FOOTER + "\n"
+        return to_json_str
+
+    def dump_FromJson_func(self, jsonAPI):
+        return build_CLASS_FROMJSON_HEADER(jsonAPI)
+
     def dump_init_func(self):
         init_str = INIT_HEADER
         if self.father != "":
@@ -1275,6 +1348,8 @@ class Class(FieldCollector):
             + ISVALID_HEADER \
             + self.dump_isvalid() \
             + ISVALID_FOOTER \
+            + self.dump_ToJson_func() \
+            + self.dump_FromJson_func(JSON_API) \
             + self.dump_init_func() \
             + "};\n\n"
         return class_str

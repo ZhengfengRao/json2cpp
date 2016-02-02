@@ -1,6 +1,6 @@
 json2cpp
 =======
-![](https://img.shields.io/badge/release-1.0.0-blue.svg)
+![](https://img.shields.io/badge/release-1.0.1-blue.svg)
 ##A tool for JSON & C++ Mapping
 Copyright (C) 2016, ICSON company, ZhengFeng Rao, NASaCJ. All rights reserved.
 
