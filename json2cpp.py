@@ -93,12 +93,14 @@ protected:
     std::string m_strName;
     bool m_bNeed;
     bool m_bSet;
+    bool m_bNeedFromDb;
 public:
     Field(const std::string& strName, bool bNeed = false)
     :m_tValue() //T
     ,m_strName(strName)
     ,m_bNeed(bNeed)
     ,m_bSet(false)
+    ,m_bNeedFromDb(false)
     {
     }
 
@@ -125,6 +127,16 @@ public:
     bool IsValueSet() const
     {
         return m_bSet;
+    }
+
+    bool IsNeedFromDb() const
+    {
+        return m_bNeedFromDb;
+    }
+
+    void SetNeedFromDbFlag()
+    {
+        m_bNeedFromDb = true;
     }
 
     bool IsValid() const
