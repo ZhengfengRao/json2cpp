@@ -1334,7 +1334,8 @@ class Class(FieldCollector):
         init_list = list(init_list)
         init_list[2] = " "
         init_list = "".join(init_list)
-        class_str = "class " + self.name + "\n{\n" \
+        class_str = "//" + self.description.decode("gbk") + "\n"
+        class_str = class_str + "class " + self.name + "\n{\n" \
             + self.dump_declaration() \
             + "\npublic:\n" \
             + "\t" + self.name + "() : \n" \
@@ -1394,7 +1395,7 @@ class Interface:
             + self.response.dump_response_is_valid() \
             + "};"
 
-        return request_str + "\n\n" + response_str
+        return "//" + self.description.decode("gbk") + "\n" + request_str + "\n\n" + response_str
 
 
 def key_value_field(keyName):
