@@ -876,7 +876,8 @@ def construct_response_iter_marco_jsoncpp(vec_type, isArrayOnly):
                           "\t{ \\\n"
         iter_c_str_head = "\t\tconst Json::Value& valArray = values; \\\n" \
                           "\t\tfor (int i = 0; i < valArray.size(); i++) \\\n" \
-                          "\t\t{ \\\n"
+                          "\t\t{ \\\n" \
+                          "\t\t\tconst Json::Value& val = valArray[i]; \\\n"
     else:
         response_macro_head = "#define FROMJSON_RESPONSE_FIELD_" + vec_type.upper() + \
                               "_ARRAY(values, field) \\\n"
