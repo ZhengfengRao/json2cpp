@@ -188,7 +188,7 @@ Interface AddInvoice {
 ``` shell
 ./json2cpp.py rapidjson sample.jsf dir_test
 ```
-Command *json2cpp* takes 3 arguements: {rapidjson/jsoncpp} *{Class definitation File}* *{Directory}*
+Command *json2cpp* takes 3 arguements: *{rapidjson/jsoncpp}* *{Class definitation File}* *{Directory}*
 Outputs in *dir_test* path is organized by the namespace defined in *sample.jsf*:
 ``` plain
 dir_test
