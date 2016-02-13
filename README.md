@@ -1,5 +1,7 @@
 json2cpp
 =======
+
+[![Join the chat at https://gitter.im/nasacj/json2cpp](https://badges.gitter.im/nasacj/json2cpp.svg)](https://gitter.im/nasacj/json2cpp?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 ![](https://img.shields.io/badge/release-1.0.2-blue.svg)
 ##A tool for JSON & C++ Mapping
 Copyright (C) 2016, ICSON company, ZhengFeng Rao, NASaCJ. All rights reserved.
