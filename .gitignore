@@ -3,5 +3,8 @@
 # *.[oa]
 # *~
 
-test
+test/test/test*
+test/test/Makefile
+test/jsf
+jsoncpp
 .idea

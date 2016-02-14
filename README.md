@@ -1,5 +1,7 @@
 json2cpp
 =======
+
+[![Join the chat at https://gitter.im/nasacj/json2cpp](https://badges.gitter.im/nasacj/json2cpp.svg)](https://gitter.im/nasacj/json2cpp?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 ![](https://img.shields.io/badge/release-1.0.2-blue.svg)
 ##A tool for JSON & C++ Mapping
 Copyright (C) 2016, ICSON company, ZhengFeng Rao, NASaCJ. All rights reserved.
@@ -37,6 +39,10 @@ cd test/test
 make
 ./test
 ```
+
+## License
+See the `LICENSE` file for details. In summary, json2cpp is licensed under the MIT license, or public domain if desired and recognized in your jurisdiction.
+json2cpp uses [RapidJSON][rapidjson-link] & [jsoncpp][jsoncpp-link], which 2 are both under MIT license.
 
 ##Usage
 Before use json2cpp, a definition file is required:
@@ -186,9 +192,9 @@ Interface AddInvoice {
 ```
 ###Generate the C++ Class files
 ``` shell
-./json2cpp.py sample.jsf dir_test
+./json2cpp.py rapidjson sample.jsf dir_test
 ```
-Command *json2cpp* takes 2 arguements: *{Class definitation File}* *{Directory}*
+Command *json2cpp* takes 3 arguements: *{rapidjson/jsoncpp}* *{Class definitation File}* *{Directory}*
 Outputs in *dir_test* path is organized by the namespace defined in *sample.jsf*:
 ``` plain
 dir_test
