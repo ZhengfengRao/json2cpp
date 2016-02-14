@@ -40,6 +40,10 @@ make
 ./test
 ```
 
+## License
+See the `LICENSE` file for details. In summary, json2cpp is licensed under the MIT license, or public domain if desired and recognized in your jurisdiction.
+json2cpp uses RapidJSON[rapidjson-link] & jsoncpp[jsoncpp-link], which 2 are both under MIT license.
+
 ##Usage
 Before use json2cpp, a definition file is required:
 ###Define the class
