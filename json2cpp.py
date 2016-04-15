@@ -1118,11 +1118,11 @@ class Field:
                 isNoNameOnly = True
                 if self.type not in response_number_marcos_noname_only:
                     construct_response_number_marco(JSON_API, self.type, isNoNameOnly)
-                    return response_number_marcos_noname_only[self.type]
+                return response_number_marcos_noname_only[self.type]
             else:
                 if self.type not in response_number_marcos:
                     construct_response_number_marco(JSON_API, self.type, isNoNameOnly)
-                    return response_number_marcos[self.type]
+                return response_number_marcos[self.type]
         elif self.type == "string":
             if self.jsonname == "":
                 return "FROMJSON_RESPONSE_FIELD_STRING_NONAME_ONLY"
