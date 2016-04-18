@@ -397,6 +397,12 @@ MACRO_H_RAPIDJSON = '''
         field.SetValue(values[field.GetName().c_str()].GetString()); \\
     }
 
+#define FROMJSON_RESPONSE_FIELD_STRING_NONAME_ONLY(values, field) \\
+    if(values.IsString()) \\
+    { \\
+        field.SetValue(values.GetString()); \\
+    }
+
 #define FROMJSON_RESPONSE_FIELD_OBJECT(values, field) \\
     if(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsObject()) \\
     { \\
@@ -442,6 +448,12 @@ MACRO_H_JSONCPP = '''
     if(values.isMember(field.GetName()) && values[field.GetName()].isString()) \\
     { \\
         field.SetValue(values[field.GetName()].asString()); \\
+    }
+
+#define FROMJSON_RESPONSE_FIELD_STRING_NONAME_ONLY(values, field) \\
+    if(values.isString()) \\
+    { \\
+        field.SetValue(values.asString()); \\
     }
 
 #define FROMJSON_RESPONSE_FIELD_OBJECT(values, field) \\
@@ -684,6 +696,8 @@ response_iter_marcos_file_array_only = {"": ""}
 
 response_number_marcos = {"": ""}
 response_number_marcos_file = {"": ""}
+response_number_marcos_noname_only = {"": ""}
+response_number_marcos_file_noname_only = {"": ""}
 
 
 def construct_request_iter_marco_rapidjson(vec_type, isArrayOnly):
@@ -972,65 +986,86 @@ def construct_response_iter_marco(jsonAPI, vector_type, isArrayOnly):
         return ""
 
 
-def construct_response_number_marco_rapidjson(num_type):
+def construct_response_number_marco_rapidjson(num_type, isNoNameOnly):
     condition = ""
     fieldset = ""
+    filedHasName = ""
+    fieldGetName = ""
+    if not isNoNameOnly:
+        filedHasName = "values.HasMember(field.GetName().c_str()) && "
+        fieldGetName = "[field.GetName().c_str()]"
     if num_type in ["short", "int"]:
-        condition = "\tif(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsInt()) \\\n"
-        fieldset = "\t\tfield.SetValue(values[field.GetName().c_str()].GetInt()); \\\n"
+        condition = "\tif(" + filedHasName + "values" + fieldGetName + ".IsInt()) \\\n"
+        fieldset = "\t\tfield.SetValue(values" + fieldGetName + ".GetInt()); \\\n"
     if num_type == "bool":
-        condition = "\tif(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsBool()) \\\n"
-        fieldset = "\t\tfield.SetValue(values[field.GetName().c_str()].GetBool()); \\\n"
+        condition = "\tif(" + filedHasName + "values" + fieldGetName + ".IsBool()) \\\n"
+        fieldset = "\t\tfield.SetValue(values" + fieldGetName + ".GetBool()); \\\n"
     if num_type == "double":
-        condition = "\tif(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsDouble()) \\\n"
-        fieldset = "\t\tfield.SetValue(values[field.GetName().c_str()].GetDouble()); \\\n"
+        condition = "\tif(" + filedHasName + "values" + fieldGetName + ".IsDouble()) \\\n"
+        fieldset = "\t\tfield.SetValue(values" + fieldGetName + ".GetDouble()); \\\n"
     if num_type == "uint32_t":
-        condition = "\tif(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsUint()) \\\n"
-        fieldset = "\t\tfield.SetValue(values[field.GetName().c_str()].GetUint()); \\\n"
+        condition = "\tif(" + filedHasName + "values" + fieldGetName + ".IsUint()) \\\n"
+        fieldset = "\t\tfield.SetValue(values" + fieldGetName + ".GetUint()); \\\n"
     if num_type == "uint64_t":
-        condition = "\tif(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsUint64()) \\\n"
-        fieldset = "\t\tfield.SetValue(values[field.GetName().c_str()].GetUint64()); \\\n"
+        condition = "\tif(" + filedHasName + "values" + fieldGetName + ".IsUint64()) \\\n"
+        fieldset = "\t\tfield.SetValue(values" + fieldGetName + ".GetUint64()); \\\n"
     if num_type == "int64_t":
-        condition = "\tif(values.HasMember(field.GetName().c_str()) && values[field.GetName().c_str()].IsInt64()) \\\n"
-        fieldset = "\t\tfield.SetValue(values[field.GetName().c_str()].GetInt64()); \\\n"
-    response_number_marcos_file[num_type] = "#define FROMJSON_RESPONSE_FIELD_" + num_type.upper() + \
+        condition = "\tif(" + filedHasName + "values" + fieldGetName + ".IsInt64()) \\\n"
+    if isNoNameOnly:
+        response_number_marcos_file_noname_only[num_type] = "#define FROMJSON_RESPONSE_FIELD_" + num_type.upper() + \
+                                          "_NONAME_ONLY(values, field) \\\n" + \
+                                          condition + "\t{ \\\n" + fieldset + "\t} \\\n\n"
+        response_number_marcos_noname_only[num_type] = "FROMJSON_RESPONSE_FIELD_" + num_type.upper() + "_NONAME_ONLY"
+    else:
+        response_number_marcos_file[num_type] = "#define FROMJSON_RESPONSE_FIELD_" + num_type.upper() + \
                                           "(values, field) \\\n" + \
                                           condition + "\t{ \\\n" + fieldset + "\t} \\\n\n"
-    response_number_marcos[num_type] = "FROMJSON_RESPONSE_FIELD_" + num_type.upper()
+        response_number_marcos[num_type] = "FROMJSON_RESPONSE_FIELD_" + num_type.upper()
 
 
-def construct_response_number_marco_jsoncpp(num_type):
+def construct_response_number_marco_jsoncpp(num_type, isNoNameOnly):
     condition = ""
     fieldset = ""
+    filedHasName = ""
+    fieldGetName = ""
+    if not isNoNameOnly:
+        filedHasName = "values.isMember(field.GetName()) && "
+        fieldGetName = "[field.GetName()]"
     if num_type in ["short", "int"]:
-        condition = "\tif(values.isMember(field.GetName()) && values[field.GetName()].isInt()) \\\n"
-        fieldset = "\t\tfield.SetValue(values[field.GetName()].asInt()); \\\n"
+        condition = "\tif(" + filedHasName + "values" + fieldGetName + ".isInt()) \\\n"
+        fieldset = "\t\tfield.SetValue(values" + fieldGetName + ".asInt()); \\\n"
     if num_type == "bool":
-        condition = "\tif(values.isMember(field.GetName()) && values[field.GetName()].isBool()) \\\n"
-        fieldset = "\t\tfield.SetValue(values[field.GetName()].asBool()); \\\n"
+        condition = "\tif(" + filedHasName + "values" + fieldGetName + ".isBool()) \\\n"
+        fieldset = "\t\tfield.SetValue(values" + fieldGetName + ".asBool()); \\\n"
     if num_type == "double":
-        condition = "\tif(values.isMember(field.GetName()) && values[field.GetName()].isDouble()) \\\n"
-        fieldset = "\t\tfield.SetValue(values[field.GetName()].asDouble()); \\\n"
+        condition = "\tif(" + filedHasName + "values" + fieldGetName + ".isDouble()) \\\n"
+        fieldset = "\t\tfield.SetValue(values" + fieldGetName + ".asDouble()); \\\n"
     if num_type == "uint32_t":
-        condition = "\tif(values.isMember(field.GetName()) && values[field.GetName()].isUInt()) \\\n"
-        fieldset = "\t\tfield.SetValue(values[field.GetName()].asUInt()); \\\n"
+        condition = "\tif(" + filedHasName + "values" + fieldGetName + ".isUInt()) \\\n"
+        fieldset = "\t\tfield.SetValue(values" + fieldGetName + ".asUInt()); \\\n"
     if num_type == "uint64_t":
-        condition = "\tif(values.isMember(field.GetName()) && values[field.GetName()].isUInt64()) \\\n"
-        fieldset = "\t\tfield.SetValue(values[field.GetName()].asUInt64()); \\\n"
+        condition = "\tif(" + filedHasName + "values" + fieldGetName + ".isUInt64()) \\\n"
+        fieldset = "\t\tfield.SetValue(values" + fieldGetName + ".asUInt64()); \\\n"
     if num_type == "int64_t":
-        condition = "\tif(values.isMember(field.GetName()) && values[field.GetName()].isInt64()) \\\n"
-        fieldset = "\t\tfield.SetValue(values[field.GetName()].asInt64()); \\\n"
-    response_number_marcos_file[num_type] = "#define FROMJSON_RESPONSE_FIELD_" + num_type.upper() + \
+        condition = "\tif(" + filedHasName + "values" + fieldGetName + ".isInt64()) \\\n"
+        fieldset = "\t\tfield.SetValue(values" + fieldGetName + ".asInt64()); \\\n"
+    if isNoNameOnly:
+        response_number_marcos_file_noname_only[num_type] = "#define FROMJSON_RESPONSE_FIELD_" + num_type.upper() + \
+                                          "_NONAME_ONLY(values, field) \\\n" + \
+                                          condition + "\t{ \\\n" + fieldset + "\t} \\\n\n"
+        response_number_marcos_noname_only[num_type] = "FROMJSON_RESPONSE_FIELD_" + num_type.upper() + "_NONAME_ONLY"
+    else:
+        response_number_marcos_file[num_type] = "#define FROMJSON_RESPONSE_FIELD_" + num_type.upper() + \
                                           "(values, field) \\\n" + \
                                           condition + "\t{ \\\n" + fieldset + "\t} \\\n\n"
-    response_number_marcos[num_type] = "FROMJSON_RESPONSE_FIELD_" + num_type.upper()
+        response_number_marcos[num_type] = "FROMJSON_RESPONSE_FIELD_" + num_type.upper()
 
 
-def construct_response_number_marco(jsonAPI, num_type):
+def construct_response_number_marco(jsonAPI, num_type, isNoNameOnly):
     if jsonAPI == JSON_API_RAPIDJSON:
-        construct_response_number_marco_rapidjson(num_type)
+        construct_response_number_marco_rapidjson(num_type, isNoNameOnly)
     if jsonAPI == JSON_API_JSONCPP:
-        construct_response_number_marco_jsoncpp(num_type)
+        construct_response_number_marco_jsoncpp(num_type, isNoNameOnly)
 
 
 class Field:
@@ -1078,11 +1113,21 @@ class Field:
 
     def get_fromjson_method(self):
         if self.type in NORMAL_TYPE:
-            if self.type not in response_number_marcos:
-                construct_response_number_marco(JSON_API, self.type)
-            return response_number_marcos[self.type]
+            isNoNameOnly = False
+            if self.jsonname == "":
+                isNoNameOnly = True
+                if self.type not in response_number_marcos_noname_only:
+                    construct_response_number_marco(JSON_API, self.type, isNoNameOnly)
+                return response_number_marcos_noname_only[self.type]
+            else:
+                if self.type not in response_number_marcos:
+                    construct_response_number_marco(JSON_API, self.type, isNoNameOnly)
+                return response_number_marcos[self.type]
         elif self.type == "string":
-            return "FROMJSON_RESPONSE_FIELD_STRING"
+            if self.jsonname == "":
+                return "FROMJSON_RESPONSE_FIELD_STRING_NONAME_ONLY"
+            else:
+                return "FROMJSON_RESPONSE_FIELD_STRING"
         elif "vector" in self.type:
             vector_type = self.type
             vector_type = vector_type.strip("vector").strip("<").strip(">")
@@ -1670,8 +1715,8 @@ def parse_field(field_tokens):
         print field_type_token
         return
     field.type = field_type_token
-    if field.jsonname == "" and "vector" not in field.type:
-        print u"[error] jsonname == \"\" only when type is vector! but now type is: " + field.type
+    if field.jsonname == "" and (field.type not in NORMAL_TYPE and field.type != "string" and "vector" not in field.type):
+        print u"[error] jsonname == \"\" only when type is not an Object! but now type is: " + field.type
         exit(-1)
 
     # field name
@@ -1721,6 +1766,8 @@ def generate_base(base_directory, class_objects):
         macros += response_iter_marcos_file_array_only[res_macros_al]
     for res_num_macros in response_number_marcos_file:
         macros += response_number_marcos_file[res_num_macros]
+    for res_num_macros in response_number_marcos_file_noname_only:
+        macros += response_number_marcos_file_noname_only[res_num_macros]
     macros += "\n#endif	/* JSON2CPP_MACRO_H */\n"
     write_file(base_directory + os.sep + "macro.h", macros)
 
