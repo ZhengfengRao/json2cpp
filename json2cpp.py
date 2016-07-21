@@ -660,7 +660,7 @@ def build_FROMJSON_HEADER(jsonAPI, has_father):
         }
         else
         {
-            const Json::Value& values = jsonResult;
+            Json::Value& values = jsonResult;
             if(values.isMember("result") && values["result"].isObject() )
             {
                 values = values["result"];
