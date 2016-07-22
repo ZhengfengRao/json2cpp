@@ -65,6 +65,7 @@ BASE_H_HEADER = '''/*
 
 #include <stdint.h>
 #include <string>
+#include <sstream>
 #include <vector>
 
 using namespace std;
@@ -101,6 +102,7 @@ enum{
     ERR_RESPONSE_RETURNED_ERROR_STATE,
     ERR_RESPONSE_PARAM_TO_JSON_FAILED,
     ERR_RESPONSE_FIELD_NOT_SET,
+	ERR_RESPONSE_PARSE_PROCOTOL_FAILED,
 };
 
 //request && response field
@@ -464,6 +466,12 @@ MACRO_H_JSONCPP = '''
         field.SetValue(field.GetValue()); \\
     }
 
+#define FROMJSON_SET_ERROR_TO_RETURN(errorCode, errorMsg)\\
+	dwRet = errorCode;\\
+	m_JSFCode.SetValue(dwRet);\\
+	m_JSFMessage.SetValue(errorMsg);\\
+	return dwRet;\\
+
 #define JSONVALUE_TOSTRING(json, str) \\
     Json::FastWriter writer; \\
     str = writer.write(json);
@@ -650,36 +658,88 @@ def build_FROMJSON_HEADER(jsonAPI, has_father):
 '''
     elif jsonAPI == JSON_API_JSONCPP:
         fromjson_header += '''
+		std::string strError;
         Json::Reader reader;
         Json::Value jsonResult;
         if (!reader.parse(strJson, jsonResult, false))
         {
-            dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
-            m_JSFCode.SetValue(dwRet);
-            m_JSFMessage.SetValue("parse response failed. " +  reader.getFormattedErrorMessages());
+			FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_PARAM_TO_JSON_FAILED, "parse response failed. " +  reader.getFormattedErrorMessages());
         }
         else
-        {
+        {	//遵循网关接口4.0规范:http://cf.jd.com/pages/viewpage.action?pageId=71986745
+			//示例:	{"code": "0","ip": "大猫","result": {"......"},"type": "json"}
+			//		{"code":"10067","error_response":{"code":"10067","uid": "c27832d1-e641-4dd9-bfc0-a39058f173bf","exception":"参数异常","gw_code":"D20013","parameter":"parameterTypes -> [], args -> []","en_desc": "","zh_desc": ""}}
+
             Json::Value& values = jsonResult;
-            if(values.isMember("result") && values["result"].isObject() )
-            {
-                values = values["result"];
-            }
+			if (!values.isObject())
+			{
+				FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_PARSE_PROCOTOL_FAILED, "response is not a json object.");
+			}
+
+			//检查code，判断调用成功还是失败
+			if (!(values.isMember("code") && values["code"].isString()))
+			{
+				FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_PARSE_PROCOTOL_FAILED, "field 'code' not set, or not a string.");
+			}
+
+			if(values["code"].asString() == "0")
+			{//调用成功
+				if (!(values.isMember("type") && values["type"].isString()))
+				{
+					FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_PARSE_PROCOTOL_FAILED, "field 'type' not set, or not a string.");
+				}
+
+				if (values["type"].asString() == "json")
+				{
+					if (!(values.isMember("result") /*&& values["result"].isObject()*/))//TODO:isObject()?
+					{
+						FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_PARSE_PROCOTOL_FAILED, "field 'result' not set, or not an object.");
+					}
+
+					values = values["result"];
 
 '''
     if has_father:
-        fromjson_header += "\t\t\tFROMJSON_RESPONSE_FIELD_FATHER(values);\n"
+        fromjson_header += "\t\t\t\t\tFROMJSON_RESPONSE_FIELD_FATHER(values);\n"
     return fromjson_header
 
 
 FROMJSON_FOOTER = '''
-            std::string strError;
-            if(!IsValid(strError))
-            {
-                dwRet = ERR_RESPONSE_FIELD_NOT_SET;
-                m_JSFCode.SetValue(dwRet);
-                m_JSFMessage.SetValue(strError);
-            }
+					if(!IsValid(strError))
+					{
+						FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_FIELD_NOT_SET, strError);
+					}
+				}
+				else if (values["type"].asString() == "string")
+				{
+					;//TODO
+				}
+				else if (values["type"].asString() == "null")
+				{
+					return dwRet;
+				}
+			}
+			else//调用失败
+			{//解析错误信息
+				std::stringstream ss;
+				ss<<values["code"].asString();
+				ss>>dwRet;
+
+				ErrorResponseV4 errorResponseV4;
+				ErrorResponseObjectV4 errorResponseObjectV4;
+				if(json2cpp::ERR_OK == errorResponseV4.FromJson(strJson, strError))
+				{
+					errorResponseObjectV4 = errorResponseV4.m_object.GetValue();
+					if (errorResponseObjectV4.m_zh_description.IsValueSet())
+					{
+						FROMJSON_SET_ERROR_TO_RETURN(dwRet, errorResponseObjectV4.m_zh_description.GetValue());
+					}
+				}
+				else
+				{
+					FROMJSON_SET_ERROR_TO_RETURN(dwRet, strError);
+				}
+			}
         }
 
         return dwRet;
