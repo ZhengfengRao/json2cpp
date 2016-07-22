@@ -413,6 +413,12 @@ MACRO_H_RAPIDJSON = '''
         field.SetValue(field.GetValue()); \\
     }
 
+#define FROMJSON_SET_ERROR_TO_RETURN(errorCode, errorMsg)\\
+	dwRet = errorCode;\\
+	m_JSFCode.SetValue(dwRet);\\
+	m_JSFMessage.SetValue(errorMsg);\\
+	return dwRet;\\
+
 #define JSONVALUE_TOSTRING(json, str) \\
     rapidjson::StringBuffer buffer; \\
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer); \\
@@ -644,16 +650,44 @@ def build_FROMJSON_HEADER(jsonAPI, has_father):
     fromjson_header = FROMJSON_HEADER
     if jsonAPI == JSON_API_RAPIDJSON:
         fromjson_header += '''
+		std::string strError;
         rapidjson::Document doc;
         if(doc.Parse<0>(strJson.c_str()).HasParseError())
         {
-            dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
-            m_JSFCode.SetValue(dwRet);
-            m_JSFMessage.SetValue("parse response failed. " +  std::string(rapidjson::GetParseError_En(doc.GetParseError())));
+			FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_PARAM_TO_JSON_FAILED, "parse response failed. " + std::string(rapidjson::GetParseError_En(doc.GetParseError())));
         }
         else
-        {
-            const rapidjson::Value& values = doc;
+        {	//遵循网关接口4.0规范:http://cf.jd.com/pages/viewpage.action?pageId=71986745
+			//示例:	{"code": "0","ip": "大猫","result": {"......"},"type": "json"}
+			//		{"code":"10067","error_response":{"code":"10067","uid": "c27832d1-e641-4dd9-bfc0-a39058f173bf","exception":"参数异常","gw_code":"D20013","parameter":"parameterTypes -> [], args -> []","en_desc": "","zh_desc": ""}}
+
+            rapidjson::Value& values = doc;
+			if (!values.IsObject())
+			{
+				FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_PARSE_PROCOTOL_FAILED, "response is not a json object.");
+			}
+
+			//检查code，判断调用成功还是失败
+			if (!(doc.HasMember("code") && doc["code"].IsString()))
+			{
+				FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_PARSE_PROCOTOL_FAILED, "field 'code' not set, or not a string.");
+			}
+
+			if(values["code"].GetString() == "0")
+			{//调用成功
+				if (!(values.HasMember("type") && values["type"].IsString()))
+				{
+					FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_PARSE_PROCOTOL_FAILED, "field 'type' not set, or not a string.");
+				}
+
+				if (values["type"].GetString() == "json")
+				{
+					if (!(values.HasMember("result") /*&& values["result"].IsObject()*/))
+					{
+						FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_PARSE_PROCOTOL_FAILED, "field 'result' not set, or not an object.");
+					}
+
+					values = values["result"];
 
 '''
     elif jsonAPI == JSON_API_JSONCPP:
@@ -691,7 +725,7 @@ def build_FROMJSON_HEADER(jsonAPI, has_father):
 
 				if (values["type"].asString() == "json")
 				{
-					if (!(values.isMember("result") /*&& values["result"].isObject()*/))//TODO:isObject()?
+					if (!(values.isMember("result") /*&& values["result"].isObject()*/))
 					{
 						FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_PARSE_PROCOTOL_FAILED, "field 'result' not set, or not an object.");
 					}
@@ -700,11 +734,54 @@ def build_FROMJSON_HEADER(jsonAPI, has_father):
 
 '''
     if has_father:
-        fromjson_header += "\t\t\t\t\tFROMJSON_RESPONSE_FIELD_FATHER(values);\n"
+        fromjson_header += "\t\t\t\tFROMJSON_RESPONSE_FIELD_FATHER(values);\n"
     return fromjson_header
 
+def build_FROMJSON_FOOTER(jsonAPI):
+    if jsonAPI == JSON_API_RAPIDJSON:
+        return '''
+					if(!IsValid(strError))
+					{
+						FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_FIELD_NOT_SET, strError);
+					}
+				}
+				else if (values["type"].GetString() == "string")
+				{
+					;//TODO
+				}
+				else if (values["type"].GetString() == "null")
+				{
+					return dwRet;
+				}
+			}
+			else//调用失败
+			{//解析错误信息
+				std::stringstream ss;
+				ss<<values["code"].GetString();
+				ss>>dwRet;
 
-FROMJSON_FOOTER = '''
+				ErrorResponseV4 errorResponseV4;
+				ErrorResponseObjectV4 errorResponseObjectV4;
+				if(json2cpp::ERR_OK == errorResponseV4.FromJson(strJson, strError))
+				{
+					errorResponseObjectV4 = errorResponseV4.m_object.GetValue();
+					if (errorResponseObjectV4.m_zh_description.IsValueSet())
+					{
+						FROMJSON_SET_ERROR_TO_RETURN(dwRet, errorResponseObjectV4.m_zh_description.GetValue());
+					}
+				}
+				else
+				{
+					FROMJSON_SET_ERROR_TO_RETURN(dwRet, strError);
+				}
+			}
+        }
+
+        return dwRet;
+    }
+'''
+    elif jsonAPI == JSON_API_JSONCPP:
+        return '''
 					if(!IsValid(strError))
 					{
 						FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_FIELD_NOT_SET, strError);
@@ -1234,7 +1311,7 @@ class Field:
     def dump_fromjson(self):
         str = ""
         if self.is_valid():
-            str = "\t\t\t" + self.get_fromjson_method() + "(values, m_" + self.name + ");\n"
+            str = "\t\t\t\t\t" + self.get_fromjson_method() + "(values, m_" + self.name + ");\n"
         return str
 
     def dump_isvalid(self):
@@ -1390,7 +1467,7 @@ class Response(FieldCollector):
     def dump_fromjson_func(self):
         from_json_str = build_FROMJSON_HEADER(JSON_API, self.father != "") \
                         + self.dump_fromjson() \
-                        + FROMJSON_FOOTER + "\n"
+                        + build_FROMJSON_FOOTER(JSON_API) + "\n"
         return from_json_str
 
 
