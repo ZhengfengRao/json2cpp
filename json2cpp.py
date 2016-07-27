@@ -105,6 +105,17 @@ enum{
 	ERR_RESPONSE_PARSE_PROCOTOL_FAILED,
 };
 
+template<typename T>
+T String2Number(const std::string& str)
+{
+	T number;
+	std::stringstream ss;
+	ss<<str;
+	ss>>number;
+
+	return number;
+}
+
 //request && response field
 template<typename T>
 class Field
@@ -198,16 +209,25 @@ public:
     virtual bool IsValid(std::string& strErrMsg) const = 0;
 };
 
+//遵循网关接口4.0规范:http://cf.jd.com/pages/viewpage.action?pageId=71986745
 class IResponse
 {
 public:
-    Field<int> m_JSFCode;
-    Field<std::string> m_JSFMessage;
+    Field<int> m_JSFCode;                       //返回码
+	Field<std::string> m_JSFErrorCode;			//业务返回的错误码(接口返回的code不为0时使用)
+    Field<std::string> m_JSFMessage;            //错误信息
+    Field<std::string> m_JSFMessageId;          //消息uuid
+    Field<std::string> m_JSFMessageIp;          //服务器昵称
+    Field<std::string> m_JSFMessageType;        //消息类型，目前有string,json,null
 
 public:
     IResponse()
         :m_JSFCode("code", true)
+		,m_JSFErrorCode("")
         ,m_JSFMessage("error")
+        ,m_JSFMessageId("uid")
+        ,m_JSFMessageIp("ip")
+        ,m_JSFMessageType("type")
     {
         Init();
     }
@@ -219,7 +239,11 @@ public:
     virtual void Init()
     {
         m_JSFCode.Clear();
+		m_JSFErrorCode.Clear();
         m_JSFMessage.Clear();
+        m_JSFMessageId.Clear();
+        m_JSFMessageIp.Clear();
+        m_JSFMessageType.Clear();
     }
 
     virtual uint32_t FromJson(const std::string& strJson, int status)
@@ -227,15 +251,36 @@ public:
         uint32_t dwRet = ERR_OK;
 
         Init();
-        if(status == 200)//http:ok
-        {
-            m_JSFCode.SetValue(0);
-            m_JSFMessage.SetValue("");
-            return dwRet;
-        }
 '''
 
 BASE_H_FOOTER = '''
+        {
+            dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
+
+            m_JSFCode.SetValue(dwRet);
+            m_JSFMessage.SetValue("string can not be parsed as json object! str:" + strJson);
+        }
+        else
+        {
+			if(status == 200)//http:ok
+			{
+				if(doc.isMember(m_JSFCode.GetName()) && doc[m_JSFCode.GetName()].isString())
+				{
+					m_JSFCode.SetValue(String2Number<int>(doc[m_JSFCode.GetName()].asString()));
+				}
+
+				FROMJSON_RESPONSE_FIELD_STRING(doc, m_JSFMessageId);
+				FROMJSON_RESPONSE_FIELD_STRING(doc, m_JSFMessageIp);
+				FROMJSON_RESPONSE_FIELD_STRING(doc, m_JSFMessageType);
+			}
+			else
+			{
+				dwRet = ERR_RESPONSE_RETURNED_ERROR_STATE;
+				m_JSFCode.SetValue(dwRet);
+				m_JSFMessage.SetValue("http returned error status, str:" + strJson);
+			}
+        }
+
         //no need
         //IsValid()
 
@@ -246,6 +291,9 @@ BASE_H_FOOTER = '''
     {
         CHECK_REQUEST_FIELD(m_JSFCode, strErrMsg);
         CHECK_REQUEST_FIELD(m_JSFMessage, strErrMsg);
+        CHECK_REQUEST_FIELD(m_JSFMessageId, strErrMsg);
+        CHECK_REQUEST_FIELD(m_JSFMessageIp, strErrMsg);
+        CHECK_REQUEST_FIELD(m_JSFMessageType, strErrMsg);
 
         return true;
     }
@@ -261,69 +309,12 @@ def build_BASE_H_FROMJSON(jsonAPI):
     if jsonAPI == JSON_API_RAPIDJSON:
         base_h_str = '''
         rapidjson::Document doc;
-        if(doc.Parse<0>(strJson.c_str()).HasParseError())
-        {
-            dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
-            m_JSFCode.SetValue(dwRet);
-            m_JSFMessage.SetValue("string can not be parsed as json object! str:" + strJson);
-        }
-        else
-        {
-            if(doc.HasMember("code") && doc["code"].IsInt())
-            {
-                m_JSFCode.SetValue(doc["code"].GetInt());
-            }
-            else
-            {
-                m_JSFCode.SetValue(status);
-            }
-
-            if(doc.HasMember("error") && doc["error"].IsString())
-            {
-                m_JSFMessage.SetValue(doc["error"].GetString());
-            }
-            else//没有按格式返回错误，就将返回的全部字符串保存起来
-            {
-                m_JSFMessage.SetValue(strJson);
-            }
-
-            dwRet = ERR_RESPONSE_RETURNED_ERROR_STATE;
-        }
-        '''
+        if(doc.Parse<0>(strJson.c_str()).HasParseError())'''
     elif jsonAPI == JSON_API_JSONCPP:
         base_h_str = '''
         Json::Reader reader;
         Json::Value doc;
-        if(!reader.parse(strJson, doc, false))
-        {
-            dwRet = ERR_RESPONSE_PARAM_TO_JSON_FAILED;
-            m_JSFCode.SetValue(dwRet);
-            m_JSFMessage.SetValue("string can not be parsed as json object! str:" + strJson);
-        }
-        else
-        {
-            if(doc["code"].isInt())
-            {
-                m_JSFCode.SetValue(doc["code"].asInt());
-            }
-            else
-            {
-                m_JSFCode.SetValue(status);
-            }
-
-            if(doc["error"].isString())
-            {
-                m_JSFMessage.SetValue(doc["error"].asString());
-            }
-            else//没有按格式返回错误，就将返回的全部字符串保存起来
-            {
-                m_JSFMessage.SetValue(strJson);
-            }
-
-            dwRet = ERR_RESPONSE_RETURNED_ERROR_STATE;
-        }
-
-        '''
+        if(!reader.parse(strJson, doc, false))'''
     return base_h_str;
 
 
@@ -737,9 +728,43 @@ def build_FROMJSON_HEADER(jsonAPI, has_father):
         fromjson_header += "\t\t\t\tFROMJSON_RESPONSE_FIELD_FATHER(values);\n"
     return fromjson_header
 
-def build_FROMJSON_FOOTER(jsonAPI):
+def build_FROMJSON_FOOTER(jsonAPI, type):
+    str2 = '''
+                    FROMJSON_RESPONSE_FIELD_STRING(values[\"result\"], m_result)
+                    if(!IsValid(strError))
+					{
+						FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_FIELD_NOT_SET, strError);
+					}
+    ''' if type=="string" else ""
+    str4 = '''
+                ErrorResponseV4 errorResponseV4;
+				ErrorResponseObjectV4 errorResponseObjectV4;
+				if(json2cpp::ERR_OK == errorResponseV4.FromJson(strJson, strError))
+				{
+					errorResponseObjectV4 = errorResponseV4.m_object.GetValue();
+					if (errorResponseObjectV4.m_gw_code.IsValueSet())
+					{
+						m_JSFErrorCode.SetValue(errorResponseObjectV4.m_gw_code.GetValue());
+					}
+
+					if (errorResponseObjectV4.m_zh_description.IsValueSet())
+					{
+						FROMJSON_SET_ERROR_TO_RETURN(dwRet, errorResponseObjectV4.m_zh_description.GetValue());
+					}
+				}
+				else
+				{
+					FROMJSON_SET_ERROR_TO_RETURN(dwRet, strError);
+				}
+			}
+        }
+
+        return dwRet;
+    }
+'''
+
     if jsonAPI == JSON_API_RAPIDJSON:
-        return '''
+        str1 =  '''
 					if(!IsValid(strError))
 					{
 						FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_FIELD_NOT_SET, strError);
@@ -747,7 +772,8 @@ def build_FROMJSON_FOOTER(jsonAPI):
 				}
 				else if (values["type"].GetString() == "string")
 				{
-					;//TODO
+                '''
+        str3 =  '''
 				}
 				else if (values["type"].GetString() == "null")
 				{
@@ -756,40 +782,20 @@ def build_FROMJSON_FOOTER(jsonAPI):
 			}
 			else//调用失败
 			{//解析错误信息
-				std::stringstream ss;
-				ss<<values["code"].GetString();
-				ss>>dwRet;
-
-				ErrorResponseV4 errorResponseV4;
-				ErrorResponseObjectV4 errorResponseObjectV4;
-				if(json2cpp::ERR_OK == errorResponseV4.FromJson(strJson, strError))
-				{
-					errorResponseObjectV4 = errorResponseV4.m_object.GetValue();
-					if (errorResponseObjectV4.m_zh_description.IsValueSet())
-					{
-						FROMJSON_SET_ERROR_TO_RETURN(dwRet, errorResponseObjectV4.m_zh_description.GetValue());
-					}
-				}
-				else
-				{
-					FROMJSON_SET_ERROR_TO_RETURN(dwRet, strError);
-				}
-			}
-        }
-
-        return dwRet;
-    }
-'''
+				dwRet = json2cpp::String2Number<int>(values["code"].GetString());
+                '''
+        return str1+str2+str3+str4
     elif jsonAPI == JSON_API_JSONCPP:
-        return '''
-					if(!IsValid(strError))
+        str1 =  '''
+                    if(!IsValid(strError))
 					{
 						FROMJSON_SET_ERROR_TO_RETURN(ERR_RESPONSE_FIELD_NOT_SET, strError);
 					}
 				}
 				else if (values["type"].asString() == "string")
 				{
-					;//TODO
+				''';
+        str3 =  '''
 				}
 				else if (values["type"].asString() == "null")
 				{
@@ -798,30 +804,9 @@ def build_FROMJSON_FOOTER(jsonAPI):
 			}
 			else//调用失败
 			{//解析错误信息
-				std::stringstream ss;
-				ss<<values["code"].asString();
-				ss>>dwRet;
-
-				ErrorResponseV4 errorResponseV4;
-				ErrorResponseObjectV4 errorResponseObjectV4;
-				if(json2cpp::ERR_OK == errorResponseV4.FromJson(strJson, strError))
-				{
-					errorResponseObjectV4 = errorResponseV4.m_object.GetValue();
-					if (errorResponseObjectV4.m_zh_description.IsValueSet())
-					{
-						FROMJSON_SET_ERROR_TO_RETURN(dwRet, errorResponseObjectV4.m_zh_description.GetValue());
-					}
-				}
-				else
-				{
-					FROMJSON_SET_ERROR_TO_RETURN(dwRet, strError);
-				}
-			}
-        }
-
-        return dwRet;
-    }
-'''
+				dwRet = json2cpp::String2Number<int>(values["code"].asString());
+                '''
+    return str1+str2+str3+str4
 
 ######################################## classes definition ####################################
 request_iter_marcos = {"": ""}
@@ -1428,6 +1413,10 @@ class Request(FieldCollector):
 
 
 class Response(FieldCollector):
+    def __init__(self):
+        FieldCollector.__init__(self)
+        self.type = "json"
+
     def dump_fromjson(self):
         str = ""
         for field in self.fields:
@@ -1467,7 +1456,7 @@ class Response(FieldCollector):
     def dump_fromjson_func(self):
         from_json_str = build_FROMJSON_HEADER(JSON_API, self.father != "") \
                         + self.dump_fromjson() \
-                        + build_FROMJSON_FOOTER(JSON_API) + "\n"
+                        + build_FROMJSON_FOOTER(JSON_API, self.type) + "\n"
         return from_json_str
 
 
@@ -1644,7 +1633,8 @@ def load_grammar():
     request = request_nal | request_inh
     response_nal = Group(response_key + lbrace + OneOrMore(field) + rbrace + semicolon)
     response_inh = Group(response_key + lbracket + field_type + rbracket + lbrace + ZeroOrMore(field) + rbrace + semicolon)
-    response = response_nal | response_inh
+    response_string = Group(response_key + lbracket + rbracket + lbrace + rbrace + semicolon)
+    response = response_nal | response_inh | response_string
     interface = Group(Optional(description) \
         + interface_key + keyword + lbrace \
         + request \
@@ -1777,7 +1767,7 @@ def parse_to_key_value_field_arrays(tokens):
     return key_value
 
 
-def parse_request(request_tokens, object_type="request"):
+def parse_request(request_tokens):
     if type(request_tokens) != list:
         print u"[error] Wrong request/response type define: " + str(type(request_tokens))
         print request_tokens
@@ -1789,22 +1779,54 @@ def parse_request(request_tokens, object_type="request"):
         print request_tokens
         return
 
-    object = Request() if (object_type == "request") else Response()
+    request = Request()
     for i in range(request_token_len):
         if i == 0:
             # request/response keyword
             pass
         elif type(request_tokens[i]) == str and i == 1:
-            object.father = request_tokens[i]
+            request.father = request_tokens[i]
         else:
             field = parse_field(request_tokens[i])
             if isinstance(field, Field) and field.is_valid():
-                object.fields.append(field)
-    return object
+                request.fields.append(field)
+    return request
 
 
 def parse_response(response_tokens):
-    return parse_request(response_tokens, "response")
+    if type(response_tokens) != list:
+        print u"[error] Wrong request/response type define: " + str(type(response_tokens))
+        print response_tokens
+        return
+
+    response_token_len = len(response_tokens)
+    if response_token_len < 2:
+        print u"[error] Unexpected end field of request/response, expected:[>=2], actual:" + str(response_token_len)
+        print response_tokens
+        return
+
+    response = Response()
+    for i in range(response_token_len):
+        if i == 0:
+            # request/response keyword
+            pass
+        elif type(response_tokens[i]) == str and i == 1:
+            if response_tokens[i] == "string":#特殊处理：继承自string,表示服务器返回的是匿名string，对应的为该response自动添加一个匿名的string类型字段
+                field = Field()
+                field.name = "result"
+                field.type = "string"
+                field.description = u"自动添加的字段，用来接收服务器返回的string类型结果,用户可根据实际需要转成其他类型(int等)".decode("utf8").encode("gbk")
+                field.jsonname = "result"
+                field.optional = "false"
+                response.fields.append(field)
+                response.type  = "string"
+            else:#继承自其他类
+                response.father = response_tokens[i]
+        else:
+            field = parse_field(response_tokens[i])
+            if isinstance(field, Field) and field.is_valid():
+                response.fields.append(field)
+    return response
 
 
 def parse_field(field_tokens):
